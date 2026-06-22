@@ -1,0 +1,38 @@
+{
+  "name": "openvideo",
+  "version": "0.1.0",
+  "description": "Douyin-first short video analysis and HyperFrames generation toolkit.",
+  "type": "module",
+  "bin": {
+    "openvideo": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx src/cli/index.ts",
+    "doctor": "tsx src/cli/index.ts doctor"
+  },
+  "keywords": [
+    "douyin",
+    "short-video",
+    "video-analysis",
+    "hyperframes",
+    "cli"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "vitest": "^4.0.0"
+  }
+}

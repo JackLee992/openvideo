@@ -1,1 +1,9 @@
 .worktrees/
+node_modules/
+dist/
+runs/
+.DS_Store
+.env
+.env.*
+!.env.example
+coverage/
