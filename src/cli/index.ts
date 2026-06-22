@@ -37,8 +37,8 @@ export async function runCli(argv: string[], io: CliIO = DEFAULT_IO): Promise<nu
   }
 
   if (command === 'doctor') {
-    io.writeErr('The doctor command is not implemented yet.');
-    return 2;
+    const { runDoctor } = await import('./commands/doctor.js');
+    return runDoctor(io);
   }
 
   if (command === 'analyze' || command === 'brief' || command === 'render') {
