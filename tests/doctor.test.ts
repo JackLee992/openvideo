@@ -18,6 +18,20 @@ function createIO(): CliIO & { stdout: string[]; stderr: string[] } {
 }
 
 describe('doctor report', () => {
+  it('checks ffmpeg tools with their supported version flag', async () => {
+    const calls: Array<{ command: string; args?: string[] }> = [];
+    const checker: DependencyChecker = async (command, args) => {
+      calls.push({ command, args });
+      return { command, found: true };
+    };
+
+    await createDoctorReport(checker);
+
+    expect(calls).toContainEqual({ command: 'ffmpeg', args: ['-version'] });
+    expect(calls).toContainEqual({ command: 'ffprobe', args: ['-version'] });
+    expect(calls).toContainEqual({ command: 'hyperframes', args: ['--version'] });
+  });
+
   it('reports required and optional dependency status', async () => {
     const checker: DependencyChecker = async (command) => ({
       command,

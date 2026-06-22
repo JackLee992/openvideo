@@ -1,7 +1,7 @@
 import type { CliIO } from '../index.js';
 import { checkCommand, type CommandStatus } from '../../utils/exec.js';
 
-export type DependencyChecker = (command: string) => Promise<CommandStatus>;
+export type DependencyChecker = (command: string, args?: string[]) => Promise<CommandStatus>;
 
 export interface DoctorReport {
   required: {
@@ -31,13 +31,13 @@ function nodeStatus(): CommandStatus {
 }
 
 export async function createDoctorReport(
-  checker: DependencyChecker = (command) => checkCommand(command),
+  checker: DependencyChecker = (command, args) => checkCommand(command, args),
 ): Promise<DoctorReport> {
   const [ffmpeg, ffprobe, hyperframes, ytdlp] = await Promise.all([
-    checker('ffmpeg'),
-    checker('ffprobe'),
-    checker('hyperframes'),
-    checker('yt-dlp'),
+    checker('ffmpeg', ['-version']),
+    checker('ffprobe', ['-version']),
+    checker('hyperframes', ['--version']),
+    checker('yt-dlp', ['--version']),
   ]);
   const required = {
     node: nodeStatus(),
