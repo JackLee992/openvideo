@@ -26,6 +26,14 @@
     "cli"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JackLee992/openvideo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JackLee992/openvideo/issues"
+  },
+  "homepage": "https://github.com/JackLee992/openvideo#readme",
   "engines": {
     "node": ">=24"
   },
