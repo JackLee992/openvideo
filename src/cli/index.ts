@@ -59,8 +59,8 @@ export async function runCli(argv: string[], io: CliIO = DEFAULT_IO): Promise<nu
   }
 
   if (command === 'render') {
-    io.writeErr(`The ${command} command is planned but not implemented in Phase 1.`);
-    return 2;
+    const { runRender } = await import('./commands/render.js');
+    return runRender(argv.slice(1), io);
   }
 
   io.writeErr(`Unknown command: ${command}`);

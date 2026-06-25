@@ -78,10 +78,20 @@ Create a goal-specific generation brief from an analyzed run:
 openvideo brief runs/<run-id> --goal "做一个 AI 工具教程类抖音短视频"
 ```
 
-Planned next command:
+Prepare a HyperFrames render project from the generation brief:
 
 ```bash
 openvideo render runs/<run-id> --prompt "介绍一个能自动生成设计稿的工具"
+```
+
+The render command prepares `renders/<run-id>/index.html` and `OPENVIDEO_RENDER.md`. Preview and final MP4 rendering stay explicit:
+
+```bash
+cd renders/<run-id>
+npx hyperframes lint
+npx hyperframes validate
+npx hyperframes preview
+npx hyperframes render --quality draft --output out.mp4
 ```
 
 ## Project Status
