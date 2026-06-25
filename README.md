@@ -72,10 +72,15 @@ openvideo download "https://www.douyin.com/video/..." --downloader jiji
 
 This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.
 
-Planned next commands:
+Create a goal-specific generation brief from an analyzed run:
 
 ```bash
 openvideo brief runs/<run-id> --goal "做一个 AI 工具教程类抖音短视频"
+```
+
+Planned next command:
+
+```bash
 openvideo render runs/<run-id> --prompt "介绍一个能自动生成设计稿的工具"
 ```
 

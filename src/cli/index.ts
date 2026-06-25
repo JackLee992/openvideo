@@ -53,7 +53,12 @@ export async function runCli(argv: string[], io: CliIO = DEFAULT_IO): Promise<nu
     return runAnalyze(argv.slice(1), io);
   }
 
-  if (command === 'brief' || command === 'render') {
+  if (command === 'brief') {
+    const { runBrief } = await import('./commands/brief.js');
+    return runBrief(argv.slice(1), io);
+  }
+
+  if (command === 'render') {
     io.writeErr(`The ${command} command is planned but not implemented in Phase 1.`);
     return 2;
   }
