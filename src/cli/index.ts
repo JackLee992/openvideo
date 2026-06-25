@@ -41,7 +41,12 @@ export async function runCli(argv: string[], io: CliIO = DEFAULT_IO): Promise<nu
     return runDoctor(io);
   }
 
-  if (command === 'analyze' || command === 'brief' || command === 'render') {
+  if (command === 'analyze') {
+    const { runAnalyze } = await import('./commands/analyze.js');
+    return runAnalyze(argv.slice(1), io);
+  }
+
+  if (command === 'brief' || command === 'render') {
     io.writeErr(`The ${command} command is planned but not implemented in Phase 1.`);
     return 2;
   }

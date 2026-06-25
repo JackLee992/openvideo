@@ -42,17 +42,24 @@ npm run doctor
 npm run build
 ```
 
-Planned commands:
+Analyze a local video file or direct video URL:
 
 ```bash
 openvideo analyze ./reference.mp4
+```
+
+This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.
+
+Planned next commands:
+
+```bash
 openvideo brief runs/<run-id> --goal "做一个 AI 工具教程类抖音短视频"
 openvideo render runs/<run-id> --prompt "介绍一个能自动生成设计稿的工具"
 ```
 
 ## Project Status
 
-Phase 1 is the CLI foundation. The Douyin-first analysis pipeline is specified in:
+Phase 2 adds the deterministic `analyze` pipeline. The Douyin-first analysis system is specified in:
 
 ```text
 docs/superpowers/specs/2026-06-23-openvideo-douyin-first-design.md

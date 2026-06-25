@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createRunLayout } from '../src/project/paths.js';
 import { writeAnalysisArtifacts, type AnalysisArtifactInput } from '../src/analysis/artifacts.js';
+import { analyzeVideo } from '../src/analysis/analyze.js';
 
 const tempDirs: string[] = [];
 
@@ -67,5 +68,44 @@ describe('writeAnalysisArtifacts', () => {
     expect(result.videoStylePath).toBe(path.join(layout.runDir, 'VIDEO_STYLE.md'));
     await expect(readFile(result.videoStylePath, 'utf8')).resolves.toContain('Things Not To Copy');
     await expect(readFile(result.hyperframesBriefPath, 'utf8')).resolves.toContain('9:16');
+  });
+});
+
+describe('analyzeVideo', () => {
+  it('normalizes a source, probes it, extracts frames, and writes artifacts', async () => {
+    const root = await tempDir();
+    const sourcePath = path.join(root, 'reference.mp4');
+    await writeFile(sourcePath, 'video');
+
+    const result = await analyzeVideo(
+      {
+        input: sourcePath,
+        outDir: path.join(root, 'runs'),
+        category: 'product-demo',
+        now: new Date('2026-06-26T08:09:10.000Z'),
+      },
+      {
+        probe: async () => ({
+          durationSec: 9,
+          width: 720,
+          height: 1280,
+          frameRate: 30,
+          videoCodec: 'h264',
+          audioCodec: 'aac',
+          hasAudio: true,
+          raw: {},
+        }),
+        extractFrames: async (_inputPath, framesDir) => {
+          const framePath = path.join(framesDir, 'frame-0001.jpg');
+          await writeFile(framePath, 'frame');
+          return [{ index: 1, fileName: 'frame-0001.jpg', path: framePath }];
+        },
+      },
+    );
+
+    expect(result.runId).toBe('2026-06-26T08-09-10-000Z-reference');
+    await expect(stat(path.join(result.layout.runDir, 'VIDEO_STYLE.md'))).resolves.toBeTruthy();
+    await expect(stat(path.join(result.layout.analysisDir, 'metadata.json'))).resolves.toBeTruthy();
+    await expect(stat(path.join(result.layout.framesDir, 'frame-0001.jpg'))).resolves.toBeTruthy();
   });
 });
