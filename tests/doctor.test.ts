@@ -61,6 +61,7 @@ describe('doctor report', () => {
     expect(text).toContain('Install ffmpeg');
     expect(text).toContain('yt-dlp: missing');
     expect(text).toContain('optional');
+    expect(text).toContain('platform URLs');
   });
 
   it('dispatches doctor from the cli', async () => {

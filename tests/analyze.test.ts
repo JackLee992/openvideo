@@ -108,4 +108,50 @@ describe('analyzeVideo', () => {
     await expect(stat(path.join(result.layout.analysisDir, 'metadata.json'))).resolves.toBeTruthy();
     await expect(stat(path.join(result.layout.framesDir, 'frame-0001.jpg'))).resolves.toBeTruthy();
   });
+
+  it('analyzes a platform URL through an injected downloader', async () => {
+    const root = await tempDir();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+      throw new Error('direct fetch should not be used');
+    };
+
+    try {
+      const result = await analyzeVideo(
+        {
+          input: 'https://www.douyin.com/video/123',
+          outDir: path.join(root, 'runs'),
+          category: 'lifestyle',
+          now: new Date('2026-06-26T08:09:10.000Z'),
+        },
+        {
+          urlDownloader: async (_url, outputDir) => {
+            const downloadedPath = path.join(outputDir, 'downloaded.mp4');
+            await writeFile(downloadedPath, 'video');
+            return downloadedPath;
+          },
+          probe: async () => ({
+            durationSec: 8,
+            width: 720,
+            height: 1280,
+            frameRate: 30,
+            videoCodec: 'h264',
+            audioCodec: 'aac',
+            hasAudio: true,
+            raw: {},
+          }),
+          extractFrames: async (_inputPath, framesDir) => {
+            const framePath = path.join(framesDir, 'frame-0001.jpg');
+            await writeFile(framePath, 'frame');
+            return [{ index: 1, fileName: 'frame-0001.jpg', path: framePath }];
+          },
+        } as Parameters<typeof analyzeVideo>[1],
+      );
+
+      await expect(readFile(path.join(result.layout.inputDir, 'source.mp4'), 'utf8')).resolves.toBe('video');
+      await expect(readFile(result.artifacts.videoStylePath, 'utf8')).resolves.toContain('lifestyle');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

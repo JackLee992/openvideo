@@ -2,7 +2,7 @@
 
 OpenVideo is a local-first toolkit for analyzing Douyin-style short videos and turning their director, editing, caption, motion, and sound language into reusable generation briefs.
 
-The first version is CLI-first. It focuses on local video files and direct video URLs, then produces artifacts such as `VIDEO_STYLE.md`, `shot-breakdown.json`, `edit-rhythm.json`, and `hyperframes-brief.md`.
+The first version is CLI-first. It focuses on local video files, direct video URLs, and public platform URLs that `yt-dlp` can resolve, then produces artifacts such as `VIDEO_STYLE.md`, `shot-breakdown.json`, `edit-rhythm.json`, and `hyperframes-brief.md`.
 
 ## Why
 
@@ -26,7 +26,7 @@ OpenVideo is designed for videos you own, have permission to analyze, or can acc
 - Node.js 24+
 - ffmpeg and ffprobe for analysis
 - HyperFrames CLI for rendering
-- yt-dlp is optional for future public-link adapters
+- yt-dlp for Douyin/TikTok-style public platform links
 
 Check your machine:
 
@@ -46,6 +46,14 @@ Analyze a local video file or direct video URL:
 
 ```bash
 openvideo analyze ./reference.mp4
+openvideo analyze https://example.com/video.mp4
+```
+
+Analyze a supported public platform URL:
+
+```bash
+brew install yt-dlp
+openvideo analyze "https://www.douyin.com/video/..."
 ```
 
 This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.

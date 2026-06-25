@@ -2,7 +2,7 @@ import { copyFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { RunLayout } from '../project/paths.js';
 
-export type SourceKind = 'local-file' | 'direct-url';
+export type SourceKind = 'local-file' | 'direct-url' | 'downloaded-url';
 
 export interface NormalizedSource {
   kind: SourceKind;
@@ -12,9 +12,11 @@ export interface NormalizedSource {
 }
 
 export type FetchLike = (url: string) => Promise<Response>;
+export type UrlDownloader = (url: string, outputDir: string) => Promise<string>;
 
 export interface NormalizeSourceOptions {
   fetchImpl?: FetchLike;
+  urlDownloader?: UrlDownloader;
 }
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.webm', '.m4v']);
@@ -32,9 +34,29 @@ export async function normalizeSource(
 ): Promise<NormalizedSource> {
   await mkdir(layout.inputDir, { recursive: true });
   if (isHttpUrl(input)) {
-    return downloadDirectUrl(input, layout, options.fetchImpl ?? fetch);
+    return normalizeRemoteSource(input, layout, options);
   }
   return copyLocalFile(input, layout);
+}
+
+async function normalizeRemoteSource(
+  input: string,
+  layout: RunLayout,
+  options: NormalizeSourceOptions,
+): Promise<NormalizedSource> {
+  const url = new URL(input);
+  if (options.urlDownloader && shouldUseExternalDownloaderFirst(url)) {
+    return downloadExternalUrl(input, layout, options.urlDownloader);
+  }
+
+  try {
+    return await downloadDirectUrl(input, layout, options.fetchImpl ?? fetch);
+  } catch (error) {
+    if (!options.urlDownloader) {
+      throw error;
+    }
+    return downloadExternalUrl(input, layout, options.urlDownloader);
+  }
 }
 
 async function copyLocalFile(input: string, layout: RunLayout): Promise<NormalizedSource> {
@@ -79,6 +101,29 @@ async function downloadDirectUrl(
   };
 }
 
+async function downloadExternalUrl(
+  input: string,
+  layout: RunLayout,
+  urlDownloader: UrlDownloader,
+): Promise<NormalizedSource> {
+  const downloadedPath = await urlDownloader(input, layout.inputDir);
+  const extension = videoExtensionFromPath(downloadedPath);
+  if (!extension) {
+    throw new Error(`External downloader returned unsupported video extension for "${downloadedPath}".`);
+  }
+  const fileName = `source${extension}`;
+  const localPath = path.join(layout.inputDir, fileName);
+  if (path.resolve(downloadedPath) !== path.resolve(localPath)) {
+    await copyFile(downloadedPath, localPath);
+  }
+  return {
+    kind: 'downloaded-url',
+    originalInput: input,
+    fileName,
+    localPath,
+  };
+}
+
 function isHttpUrl(input: string): boolean {
   try {
     const url = new URL(input);
@@ -95,4 +140,15 @@ function videoExtensionFromPath(input: string): string | null {
 
 function extensionFromContentType(contentType: string): string | null {
   return CONTENT_TYPE_EXTENSION.find(([type]) => type === contentType)?.[1] ?? null;
+}
+
+function shouldUseExternalDownloaderFirst(url: URL): boolean {
+  return isKnownVideoPlatform(url.hostname) || !videoExtensionFromPath(url.pathname);
+}
+
+function isKnownVideoPlatform(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return ['douyin.com', 'iesdouyin.com', 'tiktok.com'].some(
+    (domain) => normalized === domain || normalized.endsWith(`.${domain}`),
+  );
 }

@@ -78,4 +78,25 @@ describe('normalizeSource', () => {
       'Direct URL did not return video content',
     );
   });
+
+  it('uses an external downloader first for platform-style URLs', async () => {
+    const root = await tempDir();
+    const layout = createRunLayout(path.join(root, 'runs'), 'run-5');
+    const fetchImpl: FetchLike = async () => {
+      throw new Error('direct fetch should not be used');
+    };
+
+    const normalized = await normalizeSource('https://www.douyin.com/video/123', layout, {
+      fetchImpl,
+      urlDownloader: async (_url, outputDir) => {
+        const downloadedPath = path.join(outputDir, 'downloaded.mp4');
+        await writeFile(downloadedPath, Buffer.from('platform-video'));
+        return downloadedPath;
+      },
+    });
+
+    expect(normalized.kind).toBe('downloaded-url');
+    expect(normalized.fileName).toBe('source.mp4');
+    await expect(readFile(normalized.localPath, 'utf8')).resolves.toBe('platform-video');
+  });
 });

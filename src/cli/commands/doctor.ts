@@ -88,7 +88,7 @@ export function formatDoctorReport(report: DoctorReport): string {
     guidance.push('Install HyperFrames to enable `openvideo render`; analysis and brief generation can still run.');
   }
   if (!report.optional['yt-dlp'].found) {
-    guidance.push('yt-dlp is optional and only needed for supported public link adapters.');
+    guidance.push('yt-dlp is optional for local files, but required for supported public platform URLs.');
   }
   if (guidance.length > 0) {
     lines.push('', 'Guidance:', ...guidance.map((item) => `- ${item}`));

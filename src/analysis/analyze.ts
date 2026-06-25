@@ -1,7 +1,8 @@
 import { mkdir } from 'node:fs/promises';
 import type { RunLayout } from '../project/paths.js';
 import { createRunId, createRunLayout } from '../project/paths.js';
-import { normalizeSource } from '../sources/source.js';
+import { normalizeSource, type UrlDownloader } from '../sources/source.js';
+import { downloadWithYtDlp } from '../sources/yt-dlp.js';
 import { writeAnalysisArtifacts, type AnalysisArtifactResult, type VideoCategory } from './artifacts.js';
 import { extractFrames, type ExtractedFrame } from './frames.js';
 import { probeVideo, type VideoMetadata } from './probe.js';
@@ -17,6 +18,7 @@ export interface AnalyzeInput {
 export interface AnalyzeDeps {
   probe?: (inputPath: string) => Promise<VideoMetadata>;
   extractFrames?: (inputPath: string, framesDir: string) => Promise<ExtractedFrame[]>;
+  urlDownloader?: UrlDownloader;
 }
 
 export interface AnalyzeResult {
@@ -29,7 +31,9 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
   const category = input.category ?? 'auto';
   const runId = createRunId(input.input, input.now);
   const layout = createRunLayout(input.outDir ?? 'runs', runId);
-  const source = await normalizeSource(input.input, layout);
+  const source = await normalizeSource(input.input, layout, {
+    urlDownloader: deps.urlDownloader ?? downloadWithYtDlp,
+  });
   const probe = deps.probe ?? probeVideo;
   const frameExtractor = deps.extractFrames ?? ((sourcePath, framesDir) => extractFrames(sourcePath, framesDir));
   const metadata = await probe(source.localPath);
