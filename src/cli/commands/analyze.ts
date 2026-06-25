@@ -1,6 +1,7 @@
 import type { CliIO } from '../index.js';
 import { analyzeVideo } from '../../analysis/analyze.js';
 import type { VideoCategory } from '../../analysis/artifacts.js';
+import { DOWNLOAD_STRATEGIES, type DownloadStrategy } from '../../downloaders/providers.js';
 
 const CATEGORY_VALUES = new Set<VideoCategory>([
   'auto',
@@ -39,13 +40,28 @@ export async function runAnalyze(argv: string[], io: CliIO = DEFAULT_IO): Promis
 }
 
 type ParseResult =
-  | { ok: true; value: { input: string; outDir?: string; full?: boolean; category?: VideoCategory } }
+  | {
+      ok: true;
+      value: {
+        input: string;
+        outDir?: string;
+        full?: boolean;
+        category?: VideoCategory;
+        downloader?: DownloadStrategy;
+      };
+    }
   | { ok: false; error: string };
 
 function parseAnalyzeArgs(argv: string[]): ParseResult {
   const [input, ...rest] = argv;
   if (!input) return { ok: false, error: 'Missing input.' };
-  const value: { input: string; outDir?: string; full?: boolean; category?: VideoCategory } = { input };
+  const value: {
+    input: string;
+    outDir?: string;
+    full?: boolean;
+    category?: VideoCategory;
+    downloader?: DownloadStrategy;
+  } = { input };
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
     if (arg === '--full') {
@@ -65,6 +81,13 @@ function parseAnalyzeArgs(argv: string[]): ParseResult {
       value.category = category;
       continue;
     }
+    if (arg === '--downloader') {
+      const downloader = rest[++i] as DownloadStrategy | undefined;
+      if (!downloader) return { ok: false, error: 'Missing value for --downloader.' };
+      if (!DOWNLOAD_STRATEGIES.has(downloader)) return { ok: false, error: `Unknown downloader: ${downloader}` };
+      value.downloader = downloader;
+      continue;
+    }
     return { ok: false, error: `Unknown analyze option: ${arg}` };
   }
   return { ok: true, value };
@@ -72,7 +95,8 @@ function parseAnalyzeArgs(argv: string[]): ParseResult {
 
 function analyzeUsage(): string {
   return [
-    'Usage: openvideo analyze <file-or-url> [--out runs] [--full] [--category <category>]',
+    'Usage: openvideo analyze <file-or-url> [--out runs] [--full] [--category <category>] [--downloader auto|yt-dlp|jiji]',
     'Categories: auto, product-demo, talking-head, knowledge, commerce, lifestyle, story, cinematic-ad, motion-graphic',
+    'Downloader strategies: auto, yt-dlp, jiji',
   ].join('\n');
 }

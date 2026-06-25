@@ -21,4 +21,13 @@ describe('openvideo analyze cli', () => {
     expect(exitCode).toBe(2);
     expect(io.stderr.join('\n')).toContain('Usage: openvideo analyze <file-or-url>');
   });
+
+  it('rejects unknown downloader strategies', async () => {
+    const io = createIO();
+
+    const exitCode = await runCli(['analyze', 'https://www.douyin.com/video/123', '--downloader', 'unknown'], io);
+
+    expect(exitCode).toBe(2);
+    expect(io.stderr.join('\n')).toContain('Unknown downloader: unknown');
+  });
 });

@@ -1,7 +1,9 @@
 .worktrees/
+.openvideo/
 node_modules/
 dist/
 runs/
+downloads/
 .DS_Store
 .env
 .env.*

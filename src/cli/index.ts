@@ -14,12 +14,14 @@ const HELP_TEXT = `Usage: openvideo <command> [options]
 
 Commands:
   doctor                         Check local dependencies
+  download <url>                 Download a video URL with provider fallback
   analyze <file-or-url>           Analyze a local video file or direct video URL
   brief <run-dir>                 Generate a HyperFrames-ready brief from a run
   render <run-dir>                Render an original video from a run brief
 
 Examples:
   openvideo doctor
+  openvideo download "https://www.douyin.com/video/..."
   openvideo analyze ./reference.mp4
   openvideo brief runs/2026-06-23-demo --goal "做一个 AI 工具教程类抖音短视频"
   openvideo render runs/2026-06-23-demo --prompt "介绍一个能自动生成设计稿的工具"
@@ -39,6 +41,11 @@ export async function runCli(argv: string[], io: CliIO = DEFAULT_IO): Promise<nu
   if (command === 'doctor') {
     const { runDoctor } = await import('./commands/doctor.js');
     return runDoctor(io);
+  }
+
+  if (command === 'download') {
+    const { runDownload } = await import('./commands/download.js');
+    return runDownload(argv.slice(1), io);
   }
 
   if (command === 'analyze') {

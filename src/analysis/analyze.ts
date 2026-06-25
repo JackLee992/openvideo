@@ -2,7 +2,7 @@ import { mkdir } from 'node:fs/promises';
 import type { RunLayout } from '../project/paths.js';
 import { createRunId, createRunLayout } from '../project/paths.js';
 import { normalizeSource, type UrlDownloader } from '../sources/source.js';
-import { downloadWithYtDlp } from '../sources/yt-dlp.js';
+import { createDownloadProviders, downloadWithFallback, type DownloadStrategy } from '../downloaders/providers.js';
 import { writeAnalysisArtifacts, type AnalysisArtifactResult, type VideoCategory } from './artifacts.js';
 import { extractFrames, type ExtractedFrame } from './frames.js';
 import { probeVideo, type VideoMetadata } from './probe.js';
@@ -11,6 +11,7 @@ export interface AnalyzeInput {
   input: string;
   outDir?: string;
   category?: VideoCategory;
+  downloader?: DownloadStrategy;
   full?: boolean;
   now?: Date;
 }
@@ -32,7 +33,7 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
   const runId = createRunId(input.input, input.now);
   const layout = createRunLayout(input.outDir ?? 'runs', runId);
   const source = await normalizeSource(input.input, layout, {
-    urlDownloader: deps.urlDownloader ?? downloadWithYtDlp,
+    urlDownloader: deps.urlDownloader ?? createUrlDownloader(input.downloader ?? 'auto'),
   });
   const probe = deps.probe ?? probeVideo;
   const frameExtractor = deps.extractFrames ?? ((sourcePath, framesDir) => extractFrames(sourcePath, framesDir));
@@ -47,4 +48,11 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
     frames,
   });
   return { runId, layout, artifacts };
+}
+
+function createUrlDownloader(strategy: DownloadStrategy): UrlDownloader {
+  return async (url, outputDir) => {
+    const result = await downloadWithFallback(url, outputDir, createDownloadProviders(strategy));
+    return result.path;
+  };
 }

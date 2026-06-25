@@ -21,6 +21,7 @@ describe('openvideo cli help', () => {
     expect(exitCode).toBe(0);
     expect(io.stdout.join('\n')).toContain('Usage: openvideo <command>');
     expect(io.stdout.join('\n')).toContain('doctor');
+    expect(io.stdout.join('\n')).toContain('download <url>');
     expect(io.stdout.join('\n')).toContain('analyze <file-or-url>');
     expect(io.stdout.join('\n')).toContain('brief <run-dir>');
     expect(io.stdout.join('\n')).toContain('render <run-dir>');
