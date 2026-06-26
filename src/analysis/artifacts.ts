@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { RunLayout } from '../project/paths.js';
 import type { NormalizedSource } from '../sources/source.js';
+import type { AudioDetectionResult } from './audio.js';
 import type { ExtractedFrame } from './frames.js';
 import type { VideoMetadata } from './probe.js';
 import type { SceneDetectionResult } from './scenes.js';
@@ -24,6 +25,7 @@ export interface AnalysisArtifactInput {
   metadata: VideoMetadata;
   frames: ExtractedFrame[];
   sceneDetection?: SceneDetectionResult;
+  audioDetection?: AudioDetectionResult;
 }
 
 export interface AnalysisArtifactResult {
@@ -58,6 +60,7 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
       hasAudio: input.metadata.hasAudio,
     },
     frameSample: input.frames.map((frame) => frame.fileName),
+    audioCueCount: input.audioDetection?.cues.length ?? 0,
     raw: input.metadata.raw,
   };
 
@@ -96,6 +99,11 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
       timestampSec: cut.timestampSec,
       type: 'scene-cut',
       confidence: 'ffmpeg-scene-detect',
+    })),
+    audioCues: (input.audioDetection?.cues ?? []).map((cue) => ({
+      timestampSec: cue.timestampSec,
+      type: cue.type,
+      confidence: cue.confidence,
     })),
     retentionBeats: ['Opening 1-3 seconds should be reviewed for hook mechanics.'],
   };
@@ -187,11 +195,20 @@ function motionLanguage(input: AnalysisArtifactInput): string {
 }
 
 function soundNotes(input: AnalysisArtifactInput): string {
+  const cues = input.audioDetection?.cues ?? [];
+  const cueLines =
+    cues.length > 0
+      ? cues.map((cue) => `- ${cue.type} at ${cue.timestampSec.toFixed(2)}s (${cue.confidence})`).join('\n')
+      : '- No sound-start cues detected in deterministic V1.';
   return `# Sound Notes
 
 - Audio present: ${input.metadata.hasAudio ? 'yes' : 'no'}
 - Speech/music split: unknown in deterministic V1.
 - Review cut-to-beat relationship in the first 3 seconds and around visible transitions.
+
+## Audio Cues
+
+${cueLines}
 `;
 }
 

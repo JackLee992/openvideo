@@ -3,6 +3,7 @@ import type { RunLayout } from '../project/paths.js';
 import { createRunId, createRunLayout } from '../project/paths.js';
 import { normalizeSource, type UrlDownloader } from '../sources/source.js';
 import { createDownloadProviders, downloadWithFallback, type DownloadStrategy } from '../downloaders/providers.js';
+import { detectAudioCues, type AudioDetectionResult } from './audio.js';
 import { writeAnalysisArtifacts, type AnalysisArtifactResult, type VideoCategory } from './artifacts.js';
 import { extractFrames, type ExtractedFrame } from './frames.js';
 import { probeVideo, type VideoMetadata } from './probe.js';
@@ -21,6 +22,7 @@ export interface AnalyzeDeps {
   probe?: (inputPath: string) => Promise<VideoMetadata>;
   extractFrames?: (inputPath: string, framesDir: string) => Promise<ExtractedFrame[]>;
   detectScenes?: (inputPath: string, durationSec: number) => Promise<SceneDetectionResult>;
+  detectAudio?: (inputPath: string) => Promise<AudioDetectionResult>;
   urlDownloader?: UrlDownloader;
 }
 
@@ -40,10 +42,12 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
   const probe = deps.probe ?? probeVideo;
   const frameExtractor = deps.extractFrames ?? ((sourcePath, framesDir) => extractFrames(sourcePath, framesDir));
   const sceneDetector = deps.detectScenes ?? ((sourcePath, durationSec) => detectScenes(sourcePath, durationSec));
+  const audioDetector = deps.detectAudio ?? ((sourcePath) => detectAudioCues(sourcePath));
   const metadata = await probe(source.localPath);
   await mkdir(layout.framesDir, { recursive: true });
   const frames = await frameExtractor(source.localPath, layout.framesDir);
   const sceneDetection = await sceneDetector(source.localPath, metadata.durationSec);
+  const audioDetection = metadata.hasAudio ? await audioDetector(source.localPath) : undefined;
   const artifacts = await writeAnalysisArtifacts({
     layout,
     source,
@@ -51,6 +55,7 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
     metadata,
     frames,
     sceneDetection,
+    audioDetection,
   });
   return { runId, layout, artifacts };
 }
