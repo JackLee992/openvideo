@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
 import { chmod, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { probeVideo, type VideoMetadata } from '../analysis/probe.js';
+import { detectLikelyPreview, videoSummary, writeDownloadDiagnostics } from './diagnostics.js';
 
 interface BrowserVideoElement {
   currentSrc: string;
@@ -63,6 +65,7 @@ export interface BrowserLaunchOptions {
 export type ChromiumLauncher = (options: BrowserLaunchOptions) => Promise<BrowserDownloadInstance>;
 export type MediaFetcher = (url: string, outputPath: string, referer: string) => Promise<void>;
 export type MediaMerger = (videoPath: string, audioPath: string, outputPath: string) => Promise<void>;
+export type MediaProber = (inputPath: string) => Promise<VideoMetadata>;
 
 export interface BrowserMediaResource {
   type: 'video' | 'audio';
@@ -78,6 +81,7 @@ export interface BrowserDownloaderOptions {
   launchChromium?: ChromiumLauncher;
   fetchMedia?: MediaFetcher;
   mergeMedia?: MediaMerger;
+  probeMedia?: MediaProber;
 }
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -111,8 +115,9 @@ export async function downloadWithBrowser(
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
     const video = await waitForPlayableVideo(page, timeoutMs, options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS);
     const outputPath = path.join(resolvedOutputDir, 'source.mp4');
+    let mediaResources: BrowserMediaResource[] = [];
     if (video.src.startsWith('blob:')) {
-      await downloadBlobBackedMedia(page, resolvedOutputDir, outputPath, url, {
+      mediaResources = await downloadBlobBackedMedia(page, resolvedOutputDir, outputPath, url, {
         fetchMedia: options.fetchMedia ?? fetchMedia,
         mergeMedia: options.mergeMedia ?? mergeMedia,
         pollIntervalMs: options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
@@ -123,6 +128,34 @@ export async function downloadWithBrowser(
     }
     await chmod(outputPath, 0o600).catch(() => undefined);
     await assertDownloaded(outputPath);
+    const metadata = await (options.probeMedia ?? probeVideo)(outputPath);
+    const previewCheck = detectLikelyPreview({
+      actualDurationSec: metadata.durationSec,
+      pageDurationSec: video.duration,
+    });
+    const diagnosticsPath = await writeDownloadDiagnostics(resolvedOutputDir, {
+      url,
+      createdAt: new Date().toISOString(),
+      provider: 'browser',
+      outputPath,
+      attempts: [{ provider: 'browser', ok: true, path: outputPath }],
+      video: videoSummary(metadata),
+      browser: {
+        playbackMode: video.src.startsWith('blob:') ? 'blob-mse' : 'direct-video',
+        pageVideo: {
+          durationSec: video.duration,
+          width: video.width,
+          height: video.height,
+        },
+        mediaResourceTypes: mediaResources.map((resource) => resource.type),
+      },
+      previewCheck,
+    });
+    if (previewCheck.likelyPreview) {
+      throw new Error(
+        `Browser downloader captured likely preview media: ${previewCheck.reason}. Diagnostics: ${diagnosticsPath}`,
+      );
+    }
     return outputPath;
   } finally {
     await context?.close?.().catch(() => undefined);
@@ -141,7 +174,7 @@ async function downloadBlobBackedMedia(
     pollIntervalMs: number;
     timeoutMs: number;
   },
-): Promise<void> {
+): Promise<BrowserMediaResource[]> {
   const resources = await waitForMediaResources(page, options.timeoutMs, options.pollIntervalMs);
   const videoResource = resources.find((resource) => resource.type === 'video');
   const audioResource = resources.find((resource) => resource.type === 'audio');
@@ -151,7 +184,7 @@ async function downloadBlobBackedMedia(
 
   if (!audioResource) {
     await options.fetchMedia(videoResource.url, outputPath, referer);
-    return;
+    return resources;
   }
 
   const videoPath = path.join(outputDir, 'source.video.mp4');
@@ -159,6 +192,7 @@ async function downloadBlobBackedMedia(
   await options.fetchMedia(videoResource.url, videoPath, referer);
   await options.fetchMedia(audioResource.url, audioPath, referer);
   await options.mergeMedia(videoPath, audioPath, outputPath);
+  return resources;
 }
 
 async function waitForMediaResources(

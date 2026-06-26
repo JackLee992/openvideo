@@ -32,6 +32,8 @@ describe('runDownload', () => {
         'chrome',
         '--storage',
         '/tmp/douyin-storage.json',
+        '--min-duration',
+        '90',
       ],
       io,
       {
@@ -43,6 +45,7 @@ describe('runDownload', () => {
             cookiesFile: '/tmp/cookies.txt',
             cookiesFromBrowser: 'chrome',
             browserStoragePath: '/tmp/douyin-storage.json',
+            minDurationSec: 90,
           });
           return {
             downloadId: 'run-1',
@@ -50,6 +53,7 @@ describe('runDownload', () => {
             provider: 'jiji',
             path: path.join(outDir, 'run-1', 'clip.mp4'),
             attempts: [{ provider: 'jiji', ok: true, path: path.join(outDir, 'run-1', 'clip.mp4') }],
+            diagnosticsPath: path.join(outDir, 'run-1', 'download-diagnostics.json'),
           };
         },
       },
@@ -72,12 +76,22 @@ describe('runDownload', () => {
           provider: 'browser',
           path: '/tmp/openvideo/run-1/source.mp4',
           attempts: [{ provider: 'browser', ok: true, path: '/tmp/openvideo/run-1/source.mp4' }],
+          diagnosticsPath: '/tmp/openvideo/run-1/download-diagnostics.json',
         };
       },
     });
 
     expect(exitCode).toBe(0);
     expect(io.stdout.join('\n')).toContain('Provider: browser');
+  });
+
+  it('rejects invalid minimum duration values', async () => {
+    const io = createIO();
+
+    const exitCode = await runDownload(['https://www.douyin.com/video/123', '--min-duration', '0'], io);
+
+    expect(exitCode).toBe(2);
+    expect(io.stderr.join('\n')).toContain('Invalid value for --min-duration');
   });
 
   it('rejects unknown downloader strategies', async () => {

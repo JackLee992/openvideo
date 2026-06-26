@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "description": "Opt-in real Douyin regression samples. Raw videos, cookies, storage state, and signed media URLs must stay out of Git.",
+  "samples": [
+    {
+      "slug": "shanghai-12345-committee",
+      "url": "https://v.douyin.com/HNHOupn_zYI/",
+      "resolvedUrl": "https://www.douyin.com/video/7655269765358832923",
+      "category": "auto",
+      "minDurationSec": 90,
+      "observedDurationSec": 121.49,
+      "report": "samples/real-douyin/shanghai-12345-committee.md",
+      "lastVerified": "2026-06-26"
+    },
+    {
+      "slug": "longge-japan-visa-fee",
+      "url": "https://v.douyin.com/qiNlGUJBFB8/",
+      "resolvedUrl": "https://www.douyin.com/video/7654165556056149258",
+      "category": "knowledge",
+      "minDurationSec": 300,
+      "observedDurationSec": 308.55,
+      "report": "samples/real-douyin/longge-japan-visa-fee.md",
+      "lastVerified": "2026-06-26"
+    }
+  ]
+}

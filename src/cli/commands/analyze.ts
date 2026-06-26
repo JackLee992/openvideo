@@ -60,6 +60,7 @@ type ParseResult =
         cookiesFile?: string;
         cookiesFromBrowser?: string;
         browserStoragePath?: string;
+        minDurationSec?: number;
       };
     }
   | { ok: false; error: string };
@@ -76,6 +77,7 @@ function parseAnalyzeArgs(argv: string[]): ParseResult {
     cookiesFile?: string;
     cookiesFromBrowser?: string;
     browserStoragePath?: string;
+    minDurationSec?: number;
   } = { input };
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
@@ -121,6 +123,14 @@ function parseAnalyzeArgs(argv: string[]): ParseResult {
       value.browserStoragePath = browserStoragePath;
       continue;
     }
+    if (arg === '--min-duration') {
+      const minDurationSec = Number(rest[++i]);
+      if (!Number.isFinite(minDurationSec) || minDurationSec <= 0) {
+        return { ok: false, error: 'Invalid value for --min-duration.' };
+      }
+      value.minDurationSec = minDurationSec;
+      continue;
+    }
     return { ok: false, error: `Unknown analyze option: ${arg}` };
   }
   return { ok: true, value };
@@ -129,6 +139,7 @@ function parseAnalyzeArgs(argv: string[]): ParseResult {
 function analyzeUsage(): string {
   return [
     'Usage: openvideo analyze <file-or-url> [--out runs] [--full] [--category <category>] [--downloader auto|yt-dlp|jiji|browser|douyin-api] [--cookies <file>] [--cookies-from-browser <browser>] [--storage <playwright-storage.json>]',
+    '       [--min-duration <seconds>]',
     'Categories: auto, product-demo, talking-head, knowledge, commerce, lifestyle, story, cinematic-ad, motion-graphic',
     'Downloader strategies: auto, yt-dlp, jiji, browser, douyin-api',
   ].join('\n');

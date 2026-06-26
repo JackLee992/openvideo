@@ -2,7 +2,7 @@
 
 OpenVideo is a local-first toolkit for analyzing Douyin-style short videos and turning their director, editing, caption, motion, and sound language into reusable generation briefs.
 
-The `v0.1.0` release is CLI-first. It focuses on local video files, direct video URLs, and public platform URLs that downloader providers can resolve, then produces artifacts such as `VIDEO_STYLE.md`, `shot-breakdown.json`, `edit-rhythm.json`, and `hyperframes-brief.md`.
+The `v0.2.0` release is CLI-first. It focuses on local video files, direct video URLs, and public platform URLs that downloader providers can resolve, then produces artifacts such as `VIDEO_STYLE.md`, `shot-breakdown.json`, `edit-rhythm.json`, `analysis/report.md`, `analysis/transcript-readable.md`, and `hyperframes-brief.md`.
 
 ## Why
 
@@ -68,7 +68,8 @@ openvideo auth douyin \
 openvideo analyze "https://v.douyin.com/..." \
   --downloader auto \
   --cookies .openvideo/cookies/douyin-cookies.txt \
-  --storage .openvideo/cookies/douyin-storage.json
+  --storage .openvideo/cookies/douyin-storage.json \
+  --min-duration 90
 ```
 
 OpenVideo uses your installed Google Chrome for Playwright browser flows by default. Set `OPENVIDEO_PLAYWRIGHT_CHANNEL=bundled` and run `npx playwright install chromium` if you prefer Playwright's bundled Chromium.
@@ -92,14 +93,18 @@ If cookie-only HTTP downloaders fail because the platform requires browser-gener
 openvideo download "https://www.douyin.com/video/..." \
   --downloader browser \
   --cookies .openvideo/cookies/douyin-cookies.txt \
-  --storage .openvideo/cookies/douyin-storage.json
+  --storage .openvideo/cookies/douyin-storage.json \
+  --min-duration 90
 
 openvideo analyze "https://www.douyin.com/video/..." \
   --downloader browser \
   --cookies .openvideo/cookies/douyin-cookies.txt \
   --storage .openvideo/cookies/douyin-storage.json \
+  --min-duration 90 \
   --full
 ```
+
+`--min-duration` makes real-platform runs fail fast when a provider returns a short preview instead of the full video. Every successful `openvideo download` also writes `download-diagnostics.json` with provider attempts, captured media metadata, and preview-check status.
 
 Clone Douyin-specific fallback tools:
 
@@ -161,6 +166,12 @@ scripts/samples/analyze-real-douyin.sh \
 
 The real sample reports live in `samples/real-douyin/`. They keep only links, commands, metrics, and human-readable analysis in Git; raw videos, cookies, browser storage, and signed media URLs stay under `.openvideo/`.
 
+Run all manifest-backed real samples:
+
+```bash
+scripts/samples/run-real-douyin-manifest.sh
+```
+
 This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.
 `shot-breakdown.json` and `edit-rhythm.json` include ffmpeg-based scene cut detection for deterministic first-pass shot ranges.
 `storyboard.json`, `transition-analysis.json`, and `editor-notes.md` organize scenes into hook/proof/payoff beats, pacing roles, and cut-type evidence for director/editor review.
@@ -168,6 +179,14 @@ This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brie
 `edit-rhythm.json` and `sound-notes.md` also include ffmpeg-based sound-start cues from silence detection when the source has audio.
 `captions.json` and `caption-style.md` include optional Tesseract OCR observations from sampled frames when OCR is installed.
 `transcript.json` and `script-notes.md` include optional HyperFrames ASR word timestamps when the source has audio and transcription is available.
+
+Generate a human-readable report from an analyzed run:
+
+```bash
+openvideo report runs/<run-id>
+```
+
+This writes `analysis/report.md` and `analysis/transcript-readable.md`.
 
 Create a goal-specific generation brief from an analyzed run:
 
@@ -193,18 +212,20 @@ npx hyperframes render --quality draft --output out.mp4
 
 ## Project Status
 
-`v0.1.0` is usable for local-first video analysis and authenticated Douyin sample runs:
+`v0.2.0` is usable for repeatable local-first video analysis, authenticated Douyin sample runs, and first-pass human-readable reporting:
 
 - QR-code Douyin login through `openvideo auth douyin`
 - downloader fallback providers: `yt-dlp`, browser-backed capture, jiji, and Douyin API
+- preview-media detection with `--min-duration` and `download-diagnostics.json`
 - deterministic analysis artifacts for frames, scenes, motion, audio cues, OCR captions, and HyperFrames ASR
+- `report` command for `analysis/report.md` and segmented `analysis/transcript-readable.md`
 - `brief` and `render` preparation commands for downstream HyperFrames workflows
-- checked-in real Douyin sample reports under `samples/real-douyin/`
+- manifest-backed real Douyin sample reports and regression scripts under `samples/real-douyin/`
 
 Known limitations:
 
 - Douyin login state can expire and may need QR-code refresh.
-- Some pages can still serve preview media if browser storage is incomplete; use the real sample script's duration check.
+- Some pages can still serve preview media if browser storage is incomplete; use `--min-duration` and inspect `download-diagnostics.json`.
 - Chinese OCR and ASR segmentation are useful first passes, but still need human review for publication-grade reports.
 
 The Douyin-first analysis system is specified in:

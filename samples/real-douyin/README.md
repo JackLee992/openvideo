@@ -52,8 +52,25 @@ export OPENVIDEO_TRANSCRIBE_TIMEOUT_MS=600000
 - [Shanghai 12345 committee election dispute](./shanghai-12345-committee.md)
 - [Longge Japan visa-fee commentary](./longge-japan-visa-fee.md)
 
+## Manifest Regression
+
+The sample set is declared in `manifest.json`. Run every sample with:
+
+```bash
+scripts/samples/run-real-douyin-manifest.sh
+```
+
+Run one sample with:
+
+```bash
+OPENVIDEO_SAMPLE_FILTER=longge-japan-visa-fee \
+scripts/samples/run-real-douyin-manifest.sh
+```
+
 ## Known Behavior
 
 - Douyin may serve a very short preview if login state or browser-generated page state is incomplete. The sample script fails fast when the captured duration is below `OPENVIDEO_SAMPLE_MIN_DURATION_SEC`.
+- `download-diagnostics.json` records provider attempts, captured duration, and preview checks for each download.
 - Some Douyin pages play through MSE/blob URLs. The browser downloader observes `media-video-*` and `media-audio-*` resources and muxes them with ffmpeg when the page exposes blob playback.
-- HyperFrames ASR currently produces readable Chinese text, but Mandarin speech may arrive as one long cue with imperfect punctuation and some homophone errors. The reports below use ASR as evidence, then manually structure the analysis.
+- `openvideo report <run-dir>` writes `analysis/report.md` and `analysis/transcript-readable.md` from the generated analysis artifacts.
+- HyperFrames ASR currently produces readable Chinese text, but Mandarin speech may arrive as one long cue with imperfect punctuation and some homophone errors. The report command segments it for review, but publication-grade reports still need human judgment.

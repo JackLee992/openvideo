@@ -67,6 +67,7 @@ node dist/src/cli/index.js download "$url" \
   --downloader browser \
   --cookies "$cookies_path" \
   --storage "$storage_path" \
+  --min-duration "$min_duration_sec" \
   --out "$download_dir" | tee "$download_log"
 
 video_path="$(awk -F'Video: ' '/^Video: / { print $2 }' "$download_log" | tail -n 1)"
@@ -83,9 +84,19 @@ if ! awk -v actual="$duration_sec" -v minimum="$min_duration_sec" 'BEGIN { exit 
 fi
 
 echo "==> Analyzing $video_path (${duration_sec}s)"
+analyze_log="$sample_dir/analyze.log"
 node dist/src/cli/index.js analyze "$video_path" \
   --out "$sample_dir/runs" \
   --full \
-  --category "$category"
+  --category "$category" | tee "$analyze_log"
+
+run_dir="$(awk -F'Created run: ' '/^Created run: / { print $2 }' "$analyze_log" | tail -n 1)"
+if [[ -z "$run_dir" || ! -d "$run_dir" ]]; then
+  echo "Could not locate analysis run directory in $analyze_log" >&2
+  exit 1
+fi
+
+echo "==> Generating human-readable report"
+node dist/src/cli/index.js report "$run_dir"
 
 echo "==> Done. Outputs are under $sample_dir"

@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { VideoMetadata } from '../src/analysis/probe.js';
 import {
   downloadWithBrowser,
   filterCookiesForUrl,
@@ -56,12 +57,16 @@ describe('downloadWithBrowser', () => {
       const result = await downloadWithBrowser('https://www.douyin.com/video/123', outputDir, {
         launchChromium,
         fetchMedia,
+        probeMedia: async () => videoMetadata({ durationSec: 12, width: 1080, height: 1920 }),
         storageStatePath: '/tmp/douyin-storage.json',
         headless: true,
       });
 
       expect(result).toBe(path.join(outputDir, 'source.mp4'));
       expect(await readFile(result, 'utf8')).toBe('video-bytes');
+      const diagnostics = JSON.parse(await readFile(path.join(outputDir, 'download-diagnostics.json'), 'utf8'));
+      expect(diagnostics.browser.playbackMode).toBe('direct-video');
+      expect(diagnostics.previewCheck.likelyPreview).toBe(false);
       expect(contextOptions).toEqual({ storageState: '/tmp/douyin-storage.json' });
       expect(calls).toEqual([
         'launch:true',
@@ -110,6 +115,7 @@ describe('downloadWithBrowser', () => {
         cookiesFile,
         launchChromium,
         fetchMedia,
+        probeMedia: async () => videoMetadata({ durationSec: 12 }),
       });
 
       expect(addedCookies).toHaveLength(1);
@@ -160,6 +166,7 @@ describe('downloadWithBrowser', () => {
           merged.push(`${path.basename(videoPath)}+${path.basename(audioPath)}`);
           await writeFile(outputPath, 'merged');
         },
+        probeMedia: async () => videoMetadata({ durationSec: 308 }),
       });
 
       expect(fetched).toEqual([
@@ -168,6 +175,48 @@ describe('downloadWithBrowser', () => {
       ]);
       expect(merged).toEqual(['source.video.mp4+source.audio.m4a']);
       expect(await readFile(result, 'utf8')).toBe('merged');
+      const diagnostics = JSON.parse(await readFile(path.join(root, 'download', 'download-diagnostics.json'), 'utf8'));
+      expect(diagnostics.browser.playbackMode).toBe('blob-mse');
+      expect(diagnostics.browser.mediaResourceTypes).toEqual(['video', 'audio']);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when the captured file is much shorter than the page video duration', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'openvideo-browser-test-'));
+    try {
+      const outputDir = path.join(root, 'download');
+      const launchChromium: ChromiumLauncher = async () => ({
+        newContext: async () => ({
+          newPage: async () => ({
+            goto: async () => undefined,
+            evaluate: async <T>() =>
+              ({
+                src: 'https://media.example/preview.mp4',
+                duration: 308,
+                width: 1080,
+                height: 1920,
+              }) as T,
+            waitForTimeout: async () => undefined,
+          }),
+        }),
+        close: async () => undefined,
+      });
+
+      await expect(
+        downloadWithBrowser('https://www.douyin.com/video/123', outputDir, {
+          launchChromium,
+          fetchMedia: async (_url, outputPath) => {
+            await writeFile(outputPath, 'preview');
+          },
+          probeMedia: async () => videoMetadata({ durationSec: 2.6 }),
+        }),
+      ).rejects.toThrow('likely preview media');
+
+      const diagnostics = JSON.parse(await readFile(path.join(outputDir, 'download-diagnostics.json'), 'utf8'));
+      expect(diagnostics.previewCheck.likelyPreview).toBe(true);
+      expect(diagnostics.previewCheck.pageDurationSec).toBe(308);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -228,6 +277,20 @@ describe('readBrowserCookies', () => {
     }
   });
 });
+
+function videoMetadata(overrides: Partial<VideoMetadata> = {}): VideoMetadata {
+  return {
+    durationSec: 12,
+    width: 720,
+    height: 1280,
+    frameRate: 30,
+    videoCodec: 'h264',
+    audioCodec: 'aac',
+    hasAudio: true,
+    raw: {},
+    ...overrides,
+  };
+}
 
 describe('filterCookiesForUrl', () => {
   it('keeps only cookies for the target registrable domain', () => {

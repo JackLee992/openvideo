@@ -46,6 +46,8 @@ describe('openvideo analyze cli', () => {
         '/tmp/cookies.txt',
         '--storage',
         '/tmp/douyin-storage.json',
+        '--min-duration',
+        '90',
       ],
       io,
       {
@@ -56,6 +58,7 @@ describe('openvideo analyze cli', () => {
             cookiesFromBrowser: 'chrome',
             cookiesFile: '/tmp/cookies.txt',
             browserStoragePath: '/tmp/douyin-storage.json',
+            minDurationSec: 90,
           });
           return {
             runId: 'run-1',
@@ -86,5 +89,14 @@ describe('openvideo analyze cli', () => {
 
     expect(exitCode).toBe(0);
     expect(io.stdout.join('\n')).toContain('Created run: /tmp/openvideo/run-1');
+  });
+
+  it('rejects invalid minimum duration values', async () => {
+    const io = createIO();
+
+    const exitCode = await runCli(['analyze', 'https://www.douyin.com/video/123', '--min-duration', '-1'], io);
+
+    expect(exitCode).toBe(2);
+    expect(io.stderr.join('\n')).toContain('Invalid value for --min-duration');
   });
 });

@@ -8,6 +8,12 @@ import {
   type DownloaderAuthOptions,
   type DownloadStrategy,
 } from '../downloaders/providers.js';
+import {
+  detectLikelyPreview,
+  readDownloadDiagnostics,
+  videoSummary,
+  writeDownloadDiagnostics,
+} from '../downloaders/diagnostics.js';
 import { detectAudioCues, type AudioDetectionResult } from './audio.js';
 import { writeAnalysisArtifacts, type AnalysisArtifactResult, type VideoCategory } from './artifacts.js';
 import { detectCaptionsInFrames, type CaptionDetectionResult } from './captions.js';
@@ -23,6 +29,7 @@ export interface AnalyzeInput extends DownloaderAuthOptions {
   category?: VideoCategory;
   downloader?: DownloadStrategy;
   full?: boolean;
+  minDurationSec?: number;
   now?: Date;
 }
 
@@ -54,6 +61,7 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
         cookiesFile: input.cookiesFile,
         cookiesFromBrowser: input.cookiesFromBrowser,
         browserStoragePath: input.browserStoragePath,
+        minDurationSec: input.minDurationSec,
       }),
   });
   const probe = deps.probe ?? probeVideo;
@@ -64,6 +72,13 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
   const transcriptDetector = deps.detectTranscript ?? ((sourcePath) => detectTranscript(sourcePath));
   const motionDetector = deps.detectMotion ?? ((sourcePath, durationSec) => detectVisualMotion(sourcePath, durationSec));
   const metadata = await probe(source.localPath);
+  const inputPreviewCheck = detectLikelyPreview({
+    actualDurationSec: metadata.durationSec,
+    minDurationSec: input.minDurationSec,
+  });
+  if (inputPreviewCheck.likelyPreview) {
+    throw new Error(`Input media is shorter than requested minimum duration: ${inputPreviewCheck.reason}.`);
+  }
   await mkdir(layout.framesDir, { recursive: true });
   const frames = await frameExtractor(source.localPath, layout.framesDir);
   const sceneDetection = await sceneDetector(source.localPath, metadata.durationSec);
@@ -88,9 +103,33 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
   return { runId, layout, artifacts };
 }
 
-function createUrlDownloader(strategy: DownloadStrategy, authOptions: DownloaderAuthOptions = {}): UrlDownloader {
+function createUrlDownloader(
+  strategy: DownloadStrategy,
+  authOptions: DownloaderAuthOptions & { minDurationSec?: number } = {},
+): UrlDownloader {
   return async (url, outputDir) => {
     const result = await downloadWithFallback(url, outputDir, createDownloadProviders(strategy, authOptions));
+    const metadata = await probeVideo(result.path);
+    const previewCheck = detectLikelyPreview({
+      actualDurationSec: metadata.durationSec,
+      minDurationSec: authOptions.minDurationSec,
+    });
+    const priorDiagnostics = await readDownloadDiagnostics(outputDir);
+    const diagnosticsPath = await writeDownloadDiagnostics(outputDir, {
+      url,
+      createdAt: new Date().toISOString(),
+      provider: result.provider,
+      outputPath: result.path,
+      attempts: result.attempts,
+      video: videoSummary(metadata),
+      ...(priorDiagnostics?.browser ? { browser: priorDiagnostics.browser } : {}),
+      previewCheck,
+    });
+    if (previewCheck.likelyPreview) {
+      throw new Error(
+        `Downloaded media looks like a preview: ${previewCheck.reason}. Diagnostics: ${diagnosticsPath}`,
+      );
+    }
     return result.path;
   };
 }

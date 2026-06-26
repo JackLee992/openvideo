@@ -17,6 +17,7 @@ Commands:
   auth douyin                    Open QR-code login and export Douyin cookies
   download <url>                 Download a video URL with provider fallback
   analyze <file-or-url>           Analyze a local video file or direct video URL
+  report <run-dir>                Generate a human-readable analysis report
   brief <run-dir>                 Generate a HyperFrames-ready brief from a run
   render <run-dir>                Render an original video from a run brief
 
@@ -25,6 +26,7 @@ Examples:
   openvideo auth douyin
   openvideo download "https://www.douyin.com/video/..."
   openvideo analyze ./reference.mp4
+  openvideo report runs/2026-06-23-demo
   openvideo brief runs/2026-06-23-demo --goal "做一个 AI 工具教程类抖音短视频"
   openvideo render runs/2026-06-23-demo --prompt "介绍一个能自动生成设计稿的工具"
 `;
@@ -63,6 +65,11 @@ export async function runCli(argv: string[], io: CliIO = DEFAULT_IO): Promise<nu
   if (command === 'brief') {
     const { runBrief } = await import('./commands/brief.js');
     return runBrief(argv.slice(1), io);
+  }
+
+  if (command === 'report') {
+    const { runReport } = await import('./commands/report.js');
+    return runReport(argv.slice(1), io);
   }
 
   if (command === 'render') {

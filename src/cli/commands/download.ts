@@ -29,6 +29,7 @@ export async function runDownload(
     io.writeOut(`Download folder: ${result.outputDir}`);
     io.writeOut(`Provider: ${result.provider}`);
     io.writeOut(`Video: ${result.path}`);
+    io.writeOut(`Diagnostics: ${result.diagnosticsPath}`);
     return 0;
   } catch (error) {
     io.writeErr(error instanceof Error ? error.message : String(error));
@@ -76,6 +77,14 @@ function parseDownloadArgs(argv: string[]): ParseResult {
       value.browserStoragePath = browserStoragePath;
       continue;
     }
+    if (arg === '--min-duration') {
+      const minDurationSec = Number(rest[++i]);
+      if (!Number.isFinite(minDurationSec) || minDurationSec <= 0) {
+        return { ok: false, error: 'Invalid value for --min-duration.' };
+      }
+      value.minDurationSec = minDurationSec;
+      continue;
+    }
     return { ok: false, error: `Unknown download option: ${arg}` };
   }
 
@@ -85,6 +94,7 @@ function parseDownloadArgs(argv: string[]): ParseResult {
 function downloadUsage(): string {
   return [
     'Usage: openvideo download <url> [--out downloads] [--downloader auto|yt-dlp|jiji|browser|douyin-api] [--cookies <file>] [--cookies-from-browser <browser>] [--storage <playwright-storage.json>]',
+    '       [--min-duration <seconds>]',
     'Downloader strategies: auto, yt-dlp, jiji, browser, douyin-api',
   ].join('\n');
 }
