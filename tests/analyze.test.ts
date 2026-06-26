@@ -98,7 +98,10 @@ describe('writeAnalysisArtifacts', () => {
     await expect(stat(path.join(layout.analysisDir, 'metadata.json'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'shot-breakdown.json'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'edit-rhythm.json'))).resolves.toBeTruthy();
+    await expect(stat(path.join(layout.analysisDir, 'storyboard.json'))).resolves.toBeTruthy();
+    await expect(stat(path.join(layout.analysisDir, 'transition-analysis.json'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'director-notes.md'))).resolves.toBeTruthy();
+    await expect(stat(path.join(layout.analysisDir, 'editor-notes.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'caption-style.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'motion-language.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'sound-notes.md'))).resolves.toBeTruthy();
@@ -110,9 +113,12 @@ describe('writeAnalysisArtifacts', () => {
     const metadata = JSON.parse(await readFile(path.join(layout.analysisDir, 'metadata.json'), 'utf8'));
     const shotBreakdown = JSON.parse(await readFile(path.join(layout.analysisDir, 'shot-breakdown.json'), 'utf8'));
     const editRhythm = JSON.parse(await readFile(path.join(layout.analysisDir, 'edit-rhythm.json'), 'utf8'));
+    const storyboard = JSON.parse(await readFile(path.join(layout.analysisDir, 'storyboard.json'), 'utf8'));
+    const transitionAnalysis = JSON.parse(await readFile(path.join(layout.analysisDir, 'transition-analysis.json'), 'utf8'));
     const captions = JSON.parse(await readFile(path.join(layout.analysisDir, 'captions.json'), 'utf8'));
     const transcript = JSON.parse(await readFile(path.join(layout.analysisDir, 'transcript.json'), 'utf8'));
     const captionStyle = await readFile(path.join(layout.analysisDir, 'caption-style.md'), 'utf8');
+    const editorNotes = await readFile(path.join(layout.analysisDir, 'editor-notes.md'), 'utf8');
     const scriptNotes = await readFile(path.join(layout.analysisDir, 'script-notes.md'), 'utf8');
     const soundNotes = await readFile(path.join(layout.analysisDir, 'sound-notes.md'), 'utf8');
     expect(metadata.category).toBe('product-demo');
@@ -125,6 +131,9 @@ describe('writeAnalysisArtifacts', () => {
       { timestampSec: 1.2, type: 'scene-cut', confidence: 'ffmpeg-scene-detect' },
       { timestampSec: 3.4, type: 'scene-cut', confidence: 'ffmpeg-scene-detect' },
     ]);
+    expect(storyboard.beats.map((beat: { role: string }) => beat.role)).toEqual(['hook', 'proof', 'payoff']);
+    expect(transitionAnalysis.transitions[0].type).toBe('hard-cut');
+    expect(editorNotes).toContain('Storyboard Beats');
     expect(editRhythm.audioCues).toEqual([
       { timestampSec: 0.52, type: 'sound-start', confidence: 'ffmpeg-silencedetect' },
     ]);
@@ -227,6 +236,7 @@ describe('analyzeVideo', () => {
     await expect(stat(path.join(result.layout.framesDir, 'frame-0001.jpg'))).resolves.toBeTruthy();
     const shotBreakdown = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'shot-breakdown.json'), 'utf8'));
     const editRhythm = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'edit-rhythm.json'), 'utf8'));
+    const storyboard = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'storyboard.json'), 'utf8'));
     const captions = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'captions.json'), 'utf8'));
     const transcript = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'transcript.json'), 'utf8'));
     expect(shotBreakdown.shots).toHaveLength(2);
@@ -235,6 +245,7 @@ describe('analyzeVideo', () => {
     ]);
     expect(captions.observations[0].text).toBe('首屏大标题');
     expect(transcript.words[0].text).toBe('口播');
+    expect(storyboard.transitions[0].type).toBe('hard-cut');
   });
 
   it('analyzes a platform URL through an injected downloader', async () => {

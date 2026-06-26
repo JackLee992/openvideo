@@ -7,6 +7,7 @@ import type { CaptionDetectionResult } from './captions.js';
 import type { ExtractedFrame } from './frames.js';
 import type { VideoMetadata } from './probe.js';
 import type { SceneDetectionResult } from './scenes.js';
+import { buildStoryboardAnalysis, type StoryboardAnalysis } from './storyboard.js';
 import type { TranscriptDetectionResult } from './transcript.js';
 
 export type VideoCategory =
@@ -36,6 +37,8 @@ export interface AnalysisArtifactResult {
   metadataPath: string;
   shotBreakdownPath: string;
   editRhythmPath: string;
+  storyboardPath: string;
+  transitionAnalysisPath: string;
   captionsPath: string;
   transcriptPath: string;
   scriptNotesPath: string;
@@ -95,6 +98,17 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     },
   ];
   const cuts = input.sceneDetection?.cuts ?? [];
+  const storyboardAnalysis = buildStoryboardAnalysis({
+    runId: input.layout.runId,
+    category: input.category,
+    durationSec: input.metadata.durationSec,
+    scenes,
+    cuts,
+    frames: input.frames,
+    audioDetection: input.audioDetection,
+    captionDetection: input.captionDetection,
+    transcriptDetection: input.transcriptDetection,
+  });
   const shotBreakdown = {
     runId: input.layout.runId,
     category: input.category,
@@ -103,6 +117,8 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
       : ['No scene cuts detected; using single-scene baseline.'],
     shots: scenes.map((scene) => ({
       ...scene,
+      editorialRole: storyboardAnalysis.beats.find((beat) => beat.sceneIndex === scene.index)?.role ?? 'single-scene',
+      pacing: storyboardAnalysis.beats.find((beat) => beat.sceneIndex === scene.index)?.pacing ?? 'held',
       shotScale: input.category === 'product-demo' ? 'screen capture / product frame' : 'unknown',
       cameraMovement: 'unknown',
       cutIn: scene.index === 1 ? 'opening' : 'scene-cut',
@@ -133,9 +149,12 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   const metadataPath = path.join(input.layout.analysisDir, 'metadata.json');
   const shotBreakdownPath = path.join(input.layout.analysisDir, 'shot-breakdown.json');
   const editRhythmPath = path.join(input.layout.analysisDir, 'edit-rhythm.json');
+  const storyboardPath = path.join(input.layout.analysisDir, 'storyboard.json');
+  const transitionAnalysisPath = path.join(input.layout.analysisDir, 'transition-analysis.json');
   const captionsPath = path.join(input.layout.analysisDir, 'captions.json');
   const transcriptPath = path.join(input.layout.analysisDir, 'transcript.json');
   const directorNotesPath = path.join(input.layout.analysisDir, 'director-notes.md');
+  const editorNotesPath = path.join(input.layout.analysisDir, 'editor-notes.md');
   const captionStylePath = path.join(input.layout.analysisDir, 'caption-style.md');
   const motionLanguagePath = path.join(input.layout.analysisDir, 'motion-language.md');
   const soundNotesPath = path.join(input.layout.analysisDir, 'sound-notes.md');
@@ -146,9 +165,12 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   await writeJson(metadataPath, metadataDoc);
   await writeJson(shotBreakdownPath, shotBreakdown);
   await writeJson(editRhythmPath, editRhythm);
+  await writeJson(storyboardPath, storyboardAnalysis);
+  await writeJson(transitionAnalysisPath, transitionAnalysisDoc(storyboardAnalysis));
   await writeJson(captionsPath, captionsDoc(input));
   await writeJson(transcriptPath, transcriptDoc(input));
   await writeFile(directorNotesPath, directorNotes(input, aspectRatio));
+  await writeFile(editorNotesPath, editorNotes(storyboardAnalysis));
   await writeFile(captionStylePath, captionStyle(input));
   await writeFile(motionLanguagePath, motionLanguage(input));
   await writeFile(soundNotesPath, soundNotes(input));
@@ -160,6 +182,8 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     metadataPath,
     shotBreakdownPath,
     editRhythmPath,
+    storyboardPath,
+    transitionAnalysisPath,
     captionsPath,
     transcriptPath,
     scriptNotesPath,
@@ -189,6 +213,17 @@ function transcriptDoc(input: AnalysisArtifactInput): object {
     words: input.transcriptDetection?.words ?? [],
     text: input.transcriptDetection?.text ?? '',
     ...(input.transcriptDetection?.error ? { error: input.transcriptDetection.error } : {}),
+  };
+}
+
+function transitionAnalysisDoc(analysis: StoryboardAnalysis): object {
+  return {
+    runId: analysis.runId,
+    category: analysis.category,
+    sceneCount: analysis.sceneCount,
+    progressionCurve: analysis.progressionCurve,
+    transitions: analysis.transitions,
+    editorChecklist: analysis.editorChecklist,
   };
 }
 
@@ -229,6 +264,43 @@ function directorNotes(input: AnalysisArtifactInput, aspectRatio: string): strin
 - Aspect ratio: ${aspectRatio}
 - Duration: ${input.metadata.durationSec.toFixed(2)}s
 - V1 read: review sampled frames for shot scale, camera movement, subject blocking, and emotional progression.
+`;
+}
+
+function editorNotes(analysis: StoryboardAnalysis): string {
+  const beatLines = analysis.beats
+    .map(
+      (beat) =>
+        `- Scene ${beat.sceneIndex}, ${beat.startSec.toFixed(2)}-${beat.endSec.toFixed(2)}s: ${beat.role}, ${beat.pacing}; captions: ${beat.evidence.captions.join(' / ') || 'none'}; transcript: ${beat.evidence.transcript || 'none'}`,
+    )
+    .join('\n');
+  const transitionLines =
+    analysis.transitions.length > 0
+      ? analysis.transitions
+          .map(
+            (transition) =>
+              `- ${transition.timestampSec.toFixed(2)}s: ${transition.type} from scene ${transition.fromSceneIndex} to ${transition.toSceneIndex}; transcript: ${transition.nearbyTranscript || 'none'}; caption: ${transition.nearbyCaption || 'none'}`,
+          )
+          .join('\n')
+      : '- No scene transitions detected.';
+
+  return `# Editor Notes
+
+- Scene count: ${analysis.sceneCount}
+- Progression curve: ${analysis.progressionCurve}
+- Hook window: ${analysis.hookWindowSec.toFixed(2)}s
+
+## Storyboard Beats
+
+${beatLines}
+
+## Transitions
+
+${transitionLines}
+
+## Review Checklist
+
+${analysis.editorChecklist.map((item) => `- ${item}`).join('\n')}
 `;
 }
 
@@ -343,8 +415,8 @@ function videoStyle(input: AnalysisArtifactInput, aspectRatio: string): string {
 
 ## Editing Rhythm
 
-- Deterministic V1 detected a baseline single-scene structure.
-- Add richer cut and beat analysis before mimicking pacing closely.
+- Review \`analysis/storyboard.json\` for hook/proof/payoff progression.
+- Review \`analysis/transition-analysis.json\` before mimicking cut timing or transition types.
 
 ## Caption System
 
