@@ -89,7 +89,7 @@ export function formatDoctorReport(report: DoctorReport): string {
     guidance.push('Install ffmpeg to enable metadata probing and frame extraction.');
   }
   if (!report.optional.hyperframes.found) {
-    guidance.push('Install HyperFrames to enable `openvideo render`; analysis and brief generation can still run.');
+    guidance.push('Install HyperFrames to enable `openvideo render` and ASR transcript extraction; core analysis and brief generation can still run.');
   }
   if (!report.optional['yt-dlp'].found) {
     guidance.push('yt-dlp is optional for local files, but required for supported public platform URLs.');

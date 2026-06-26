@@ -9,6 +9,7 @@ import { detectCaptionsInFrames, type CaptionDetectionResult } from './captions.
 import { extractFrames, type ExtractedFrame } from './frames.js';
 import { probeVideo, type VideoMetadata } from './probe.js';
 import { detectScenes, type SceneDetectionResult } from './scenes.js';
+import { detectTranscript, transcriptUnavailable, type TranscriptDetectionResult } from './transcript.js';
 
 export interface AnalyzeInput {
   input: string;
@@ -25,6 +26,7 @@ export interface AnalyzeDeps {
   detectScenes?: (inputPath: string, durationSec: number) => Promise<SceneDetectionResult>;
   detectAudio?: (inputPath: string) => Promise<AudioDetectionResult>;
   detectCaptions?: (frames: ExtractedFrame[]) => Promise<CaptionDetectionResult>;
+  detectTranscript?: (inputPath: string) => Promise<TranscriptDetectionResult>;
   urlDownloader?: UrlDownloader;
 }
 
@@ -46,11 +48,15 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
   const sceneDetector = deps.detectScenes ?? ((sourcePath, durationSec) => detectScenes(sourcePath, durationSec));
   const audioDetector = deps.detectAudio ?? ((sourcePath) => detectAudioCues(sourcePath));
   const captionDetector = deps.detectCaptions ?? ((sampledFrames) => detectCaptionsInFrames(sampledFrames));
+  const transcriptDetector = deps.detectTranscript ?? ((sourcePath) => detectTranscript(sourcePath));
   const metadata = await probe(source.localPath);
   await mkdir(layout.framesDir, { recursive: true });
   const frames = await frameExtractor(source.localPath, layout.framesDir);
   const sceneDetection = await sceneDetector(source.localPath, metadata.durationSec);
   const audioDetection = metadata.hasAudio ? await audioDetector(source.localPath) : undefined;
+  const transcriptDetection = metadata.hasAudio
+    ? await transcriptDetector(source.localPath)
+    : transcriptUnavailable('Source has no audio track.', { model: 'small' });
   const captionDetection = await captionDetector(frames);
   const artifacts = await writeAnalysisArtifacts({
     layout,
@@ -61,6 +67,7 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
     sceneDetection,
     audioDetection,
     captionDetection,
+    transcriptDetection,
   });
   return { runId, layout, artifacts };
 }

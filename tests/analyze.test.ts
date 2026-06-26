@@ -80,6 +80,17 @@ describe('writeAnalysisArtifacts', () => {
           },
         ],
       },
+      transcriptDetection: {
+        available: true,
+        provider: 'hyperframes-transcribe',
+        model: 'small',
+        language: 'zh',
+        words: [
+          { id: 'w0', text: '开场', start: 0.1, end: 0.4 },
+          { id: 'w1', text: '钩子', start: 0.45, end: 0.8 },
+        ],
+        text: '开场 钩子',
+      },
     };
 
     const result = await writeAnalysisArtifacts(input);
@@ -91,6 +102,8 @@ describe('writeAnalysisArtifacts', () => {
     await expect(stat(path.join(layout.analysisDir, 'caption-style.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'motion-language.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'sound-notes.md'))).resolves.toBeTruthy();
+    await expect(stat(path.join(layout.analysisDir, 'transcript.json'))).resolves.toBeTruthy();
+    await expect(stat(path.join(layout.analysisDir, 'script-notes.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.runDir, 'VIDEO_STYLE.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.runDir, 'hyperframes-brief.md'))).resolves.toBeTruthy();
 
@@ -98,7 +111,9 @@ describe('writeAnalysisArtifacts', () => {
     const shotBreakdown = JSON.parse(await readFile(path.join(layout.analysisDir, 'shot-breakdown.json'), 'utf8'));
     const editRhythm = JSON.parse(await readFile(path.join(layout.analysisDir, 'edit-rhythm.json'), 'utf8'));
     const captions = JSON.parse(await readFile(path.join(layout.analysisDir, 'captions.json'), 'utf8'));
+    const transcript = JSON.parse(await readFile(path.join(layout.analysisDir, 'transcript.json'), 'utf8'));
     const captionStyle = await readFile(path.join(layout.analysisDir, 'caption-style.md'), 'utf8');
+    const scriptNotes = await readFile(path.join(layout.analysisDir, 'script-notes.md'), 'utf8');
     const soundNotes = await readFile(path.join(layout.analysisDir, 'sound-notes.md'), 'utf8');
     expect(metadata.category).toBe('product-demo');
     expect(metadata.video.aspectRatio).toBe('9:16');
@@ -115,6 +130,7 @@ describe('writeAnalysisArtifacts', () => {
     ]);
     expect(metadata.audioCueCount).toBe(1);
     expect(metadata.captionObservationCount).toBe(1);
+    expect(metadata.transcriptWordCount).toBe(2);
     expect(captions.observations).toEqual([
       {
         frameIndex: 1,
@@ -126,6 +142,11 @@ describe('writeAnalysisArtifacts', () => {
       },
     ]);
     expect(captionStyle).toContain('AI 工具三步上手');
+    expect(transcript.words).toEqual([
+      { id: 'w0', text: '开场', start: 0.1, end: 0.4 },
+      { id: 'w1', text: '钩子', start: 0.45, end: 0.8 },
+    ]);
+    expect(scriptNotes).toContain('开场 钩子');
     expect(soundNotes).toContain('0.52s');
     expect(result.videoStylePath).toBe(path.join(layout.runDir, 'VIDEO_STYLE.md'));
     await expect(readFile(result.videoStylePath, 'utf8')).resolves.toContain('Things Not To Copy');
@@ -189,6 +210,14 @@ describe('analyzeVideo', () => {
             source: 'tesseract',
           })),
         }),
+        detectTranscript: async () => ({
+          available: true,
+          provider: 'hyperframes-transcribe',
+          model: 'small',
+          language: 'zh',
+          words: [{ id: 'w0', text: '口播', start: 0.2, end: 0.7 }],
+          text: '口播',
+        }),
       },
     );
 
@@ -199,11 +228,13 @@ describe('analyzeVideo', () => {
     const shotBreakdown = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'shot-breakdown.json'), 'utf8'));
     const editRhythm = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'edit-rhythm.json'), 'utf8'));
     const captions = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'captions.json'), 'utf8'));
+    const transcript = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'transcript.json'), 'utf8'));
     expect(shotBreakdown.shots).toHaveLength(2);
     expect(editRhythm.audioCues).toEqual([
       { timestampSec: 0.4, type: 'sound-start', confidence: 'ffmpeg-silencedetect' },
     ]);
     expect(captions.observations[0].text).toBe('首屏大标题');
+    expect(transcript.words[0].text).toBe('口播');
   });
 
   it('analyzes a platform URL through an injected downloader', async () => {
@@ -258,6 +289,14 @@ describe('analyzeVideo', () => {
             provider: 'tesseract',
             language: 'chi_sim+eng',
             observations: [],
+          }),
+          detectTranscript: async () => ({
+            available: false,
+            provider: 'hyperframes-transcribe',
+            model: 'small',
+            words: [],
+            text: '',
+            error: 'not needed in this test',
           }),
         } as Parameters<typeof analyzeVideo>[1],
       );

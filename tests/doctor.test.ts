@@ -61,6 +61,7 @@ describe('doctor report', () => {
 
     expect(text).toContain('ffmpeg: missing');
     expect(text).toContain('Install ffmpeg');
+    expect(text).toContain('ASR');
     expect(text).toContain('yt-dlp: missing');
     expect(text).toContain('tesseract: missing');
     expect(text).toContain('optional');

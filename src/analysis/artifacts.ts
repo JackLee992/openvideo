@@ -7,6 +7,7 @@ import type { CaptionDetectionResult } from './captions.js';
 import type { ExtractedFrame } from './frames.js';
 import type { VideoMetadata } from './probe.js';
 import type { SceneDetectionResult } from './scenes.js';
+import type { TranscriptDetectionResult } from './transcript.js';
 
 export type VideoCategory =
   | 'auto'
@@ -28,6 +29,7 @@ export interface AnalysisArtifactInput {
   sceneDetection?: SceneDetectionResult;
   audioDetection?: AudioDetectionResult;
   captionDetection?: CaptionDetectionResult;
+  transcriptDetection?: TranscriptDetectionResult;
 }
 
 export interface AnalysisArtifactResult {
@@ -35,6 +37,8 @@ export interface AnalysisArtifactResult {
   shotBreakdownPath: string;
   editRhythmPath: string;
   captionsPath: string;
+  transcriptPath: string;
+  scriptNotesPath: string;
   videoStylePath: string;
   hyperframesBriefPath: string;
 }
@@ -65,11 +69,19 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     frameSample: input.frames.map((frame) => frame.fileName),
     audioCueCount: input.audioDetection?.cues.length ?? 0,
     captionObservationCount: input.captionDetection?.observations.length ?? 0,
+    transcriptWordCount: input.transcriptDetection?.words.length ?? 0,
     captionOcr: {
       provider: input.captionDetection?.provider ?? 'tesseract',
       available: input.captionDetection?.available ?? false,
       language: input.captionDetection?.language ?? 'unknown',
       ...(input.captionDetection?.error ? { error: input.captionDetection.error } : {}),
+    },
+    transcript: {
+      provider: input.transcriptDetection?.provider ?? 'hyperframes-transcribe',
+      available: input.transcriptDetection?.available ?? false,
+      model: input.transcriptDetection?.model ?? 'small',
+      ...(input.transcriptDetection?.language ? { language: input.transcriptDetection.language } : {}),
+      ...(input.transcriptDetection?.error ? { error: input.transcriptDetection.error } : {}),
     },
     raw: input.metadata.raw,
   };
@@ -122,10 +134,12 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   const shotBreakdownPath = path.join(input.layout.analysisDir, 'shot-breakdown.json');
   const editRhythmPath = path.join(input.layout.analysisDir, 'edit-rhythm.json');
   const captionsPath = path.join(input.layout.analysisDir, 'captions.json');
+  const transcriptPath = path.join(input.layout.analysisDir, 'transcript.json');
   const directorNotesPath = path.join(input.layout.analysisDir, 'director-notes.md');
   const captionStylePath = path.join(input.layout.analysisDir, 'caption-style.md');
   const motionLanguagePath = path.join(input.layout.analysisDir, 'motion-language.md');
   const soundNotesPath = path.join(input.layout.analysisDir, 'sound-notes.md');
+  const scriptNotesPath = path.join(input.layout.analysisDir, 'script-notes.md');
   const videoStylePath = path.join(input.layout.runDir, 'VIDEO_STYLE.md');
   const hyperframesBriefPath = path.join(input.layout.runDir, 'hyperframes-brief.md');
 
@@ -133,10 +147,12 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   await writeJson(shotBreakdownPath, shotBreakdown);
   await writeJson(editRhythmPath, editRhythm);
   await writeJson(captionsPath, captionsDoc(input));
+  await writeJson(transcriptPath, transcriptDoc(input));
   await writeFile(directorNotesPath, directorNotes(input, aspectRatio));
   await writeFile(captionStylePath, captionStyle(input));
   await writeFile(motionLanguagePath, motionLanguage(input));
   await writeFile(soundNotesPath, soundNotes(input));
+  await writeFile(scriptNotesPath, scriptNotes(input));
   await writeFile(videoStylePath, videoStyle(input, aspectRatio));
   await writeFile(hyperframesBriefPath, hyperframesBrief(input, aspectRatio));
 
@@ -145,6 +161,8 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     shotBreakdownPath,
     editRhythmPath,
     captionsPath,
+    transcriptPath,
+    scriptNotesPath,
     videoStylePath,
     hyperframesBriefPath,
   };
@@ -158,6 +176,19 @@ function captionsDoc(input: AnalysisArtifactInput): object {
     language: input.captionDetection?.language ?? 'unknown',
     observations: input.captionDetection?.observations ?? [],
     ...(input.captionDetection?.error ? { error: input.captionDetection.error } : {}),
+  };
+}
+
+function transcriptDoc(input: AnalysisArtifactInput): object {
+  return {
+    runId: input.layout.runId,
+    provider: input.transcriptDetection?.provider ?? 'hyperframes-transcribe',
+    available: input.transcriptDetection?.available ?? false,
+    model: input.transcriptDetection?.model ?? 'small',
+    ...(input.transcriptDetection?.language ? { language: input.transcriptDetection.language } : {}),
+    words: input.transcriptDetection?.words ?? [],
+    text: input.transcriptDetection?.text ?? '',
+    ...(input.transcriptDetection?.error ? { error: input.transcriptDetection.error } : {}),
   };
 }
 
@@ -260,6 +291,36 @@ ${cueLines}
 `;
 }
 
+function scriptNotes(input: AnalysisArtifactInput): string {
+  const transcript = input.transcriptDetection;
+  const status = transcript?.available
+    ? transcript.words.length > 0
+      ? 'observed'
+      : 'no words detected'
+    : 'ASR unavailable';
+  const preview = transcript?.text ? transcript.text.slice(0, 600) : 'No transcript text available.';
+  const unavailableLine =
+    transcript && !transcript.available && transcript.error
+      ? `\n- ASR note: ${transcript.error}\n`
+      : '';
+
+  return `# Script Notes
+
+- Transcript status: ${status}.
+- ASR provider: ${transcript?.provider ?? 'hyperframes-transcribe'} (${transcript?.model ?? 'small'}).
+- Word count: ${transcript?.words.length ?? 0}.
+- Use transcript wording as source evidence only; do not copy exact source script into generated videos.${unavailableLine}
+## Transcript Preview
+
+${preview}
+
+## Script Review Checklist
+
+- Identify the first spoken hook, proof beats, objection handling, payoff line, and CTA.
+- Compare spoken emphasis with scene cuts, caption emphasis, and sound-start cues.
+`;
+}
+
 function videoStyle(input: AnalysisArtifactInput, aspectRatio: string): string {
   return `# VIDEO_STYLE
 
@@ -273,6 +334,7 @@ function videoStyle(input: AnalysisArtifactInput, aspectRatio: string): string {
 
 - Treat the first ${Math.min(3, input.metadata.durationSec).toFixed(2)} seconds as the hook window.
 - Identify the opening promise, visual proof, or pattern interrupt before generating a new video.
+- Transcript words observed: ${input.transcriptDetection?.words.length ?? 0}.
 
 ## Director Notes
 
