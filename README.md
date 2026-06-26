@@ -2,7 +2,7 @@
 
 OpenVideo is a local-first toolkit for analyzing Douyin-style short videos and turning their director, editing, caption, motion, and sound language into reusable generation briefs.
 
-The first version is CLI-first. It focuses on local video files, direct video URLs, and public platform URLs that downloader providers can resolve, then produces artifacts such as `VIDEO_STYLE.md`, `shot-breakdown.json`, `edit-rhythm.json`, and `hyperframes-brief.md`.
+The `v0.1.0` release is CLI-first. It focuses on local video files, direct video URLs, and public platform URLs that downloader providers can resolve, then produces artifacts such as `VIDEO_STYLE.md`, `shot-breakdown.json`, `edit-rhythm.json`, and `hyperframes-brief.md`.
 
 ## Why
 
@@ -193,10 +193,25 @@ npx hyperframes render --quality draft --output out.mp4
 
 ## Project Status
 
-Phase 2 adds the deterministic `analyze` pipeline. The Douyin-first analysis system is specified in:
+`v0.1.0` is usable for local-first video analysis and authenticated Douyin sample runs:
+
+- QR-code Douyin login through `openvideo auth douyin`
+- downloader fallback providers: `yt-dlp`, browser-backed capture, jiji, and Douyin API
+- deterministic analysis artifacts for frames, scenes, motion, audio cues, OCR captions, and HyperFrames ASR
+- `brief` and `render` preparation commands for downstream HyperFrames workflows
+- checked-in real Douyin sample reports under `samples/real-douyin/`
+
+Known limitations:
+
+- Douyin login state can expire and may need QR-code refresh.
+- Some pages can still serve preview media if browser storage is incomplete; use the real sample script's duration check.
+- Chinese OCR and ASR segmentation are useful first passes, but still need human review for publication-grade reports.
+
+The Douyin-first analysis system is specified in:
 
 ```text
-docs/superpowers/specs/2026-06-23-openvideo-douyin-first-design.md
+docs/superpowers/plans/2026-06-23-openvideo-phase-1-foundation.md
+docs/superpowers/plans/2026-06-26-openvideo-phase-2-deterministic-analyze.md
 ```
 
 Downloader provider details live in:
