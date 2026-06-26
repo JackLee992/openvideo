@@ -92,6 +92,20 @@ export OPENVIDEO_DOUYIN_API_BASE_URL=http://127.0.0.1:8080
 openvideo download "https://www.douyin.com/video/..." --downloader douyin-api
 ```
 
+Run an opt-in real Douyin smoke test:
+
+```bash
+OPENVIDEO_SMOKE_DOUYIN_URL="https://www.douyin.com/video/..." npm run smoke:douyin
+```
+
+Useful overrides:
+
+```bash
+OPENVIDEO_SMOKE_DOWNLOADER=jiji
+OPENVIDEO_SMOKE_CATEGORY=knowledge
+OPENVIDEO_SMOKE_DIR=.openvideo/smoke/douyin
+```
+
 This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.
 `shot-breakdown.json` and `edit-rhythm.json` include ffmpeg-based scene cut detection for deterministic first-pass shot ranges.
 `edit-rhythm.json` and `sound-notes.md` also include ffmpeg-based sound-start cues from silence detection when the source has audio.

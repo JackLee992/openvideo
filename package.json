@@ -16,7 +16,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsx src/cli/index.ts",
-    "doctor": "tsx src/cli/index.ts doctor"
+    "doctor": "tsx src/cli/index.ts doctor",
+    "smoke:douyin": "scripts/smoke/douyin-url.sh"
   },
   "keywords": [
     "douyin",
