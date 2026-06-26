@@ -26,6 +26,7 @@ export async function downloadVideo(input: DownloadInput): Promise<DownloadResul
   const providers = createDownloadProviders(input.downloader ?? 'auto', {
     cookiesFile: input.cookiesFile,
     cookiesFromBrowser: input.cookiesFromBrowser,
+    browserStoragePath: input.browserStoragePath,
   });
   const result = await downloadWithFallback(input.url, outputDir, providers);
   return {

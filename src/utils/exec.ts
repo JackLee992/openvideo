@@ -1,15 +1,17 @@
 import { spawn } from 'node:child_process';
+import { resolveCommand } from './binaries.js';
 
 export interface CommandStatus {
   command: string;
   found: boolean;
   version?: string;
+  output?: string;
   error?: string;
 }
 
 export async function checkCommand(command: string, args: string[] = ['--version']): Promise<CommandStatus> {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(resolveCommand(command), args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
 
@@ -31,6 +33,7 @@ export async function checkCommand(command: string, args: string[] = ['--version
         command,
         found: code === 0,
         ...(firstLine ? { version: firstLine.trim() } : {}),
+        ...(output ? { output } : {}),
         ...(code === 0 ? {} : { error: `exited with code ${code}` }),
       });
     });

@@ -3,6 +3,13 @@ import { checkCommand, type CommandStatus } from '../../utils/exec.js';
 
 export type DependencyChecker = (command: string, args?: string[]) => Promise<CommandStatus>;
 
+export interface OcrLanguageStatus {
+  language: string;
+  ready: boolean;
+  missing: string[];
+  available: string[];
+}
+
 export interface DoctorReport {
   required: {
     node: CommandStatus;
@@ -13,6 +20,7 @@ export interface DoctorReport {
     hyperframes: CommandStatus;
     'yt-dlp': CommandStatus;
     tesseract: CommandStatus;
+    ocrLanguages: OcrLanguageStatus;
   };
   readyForAnalyze: boolean;
   readyForRender: boolean;
@@ -46,10 +54,12 @@ export async function createDoctorReport(
     ffmpeg,
     ffprobe,
   };
+  const ocrLanguages = await checkOcrLanguages(checker, tesseract.found);
   const optional = {
     hyperframes,
     'yt-dlp': ytdlp,
     tesseract,
+    ocrLanguages,
   };
   return {
     required,
@@ -59,11 +69,49 @@ export async function createDoctorReport(
   };
 }
 
+async function checkOcrLanguages(checker: DependencyChecker, tesseractFound: boolean): Promise<OcrLanguageStatus> {
+  const language = process.env.OPENVIDEO_OCR_LANG ?? 'chi_sim+eng';
+  const required = splitTesseractLanguages(language);
+  if (!tesseractFound) {
+    return { language, ready: false, missing: required, available: [] };
+  }
+
+  const status = await checker('tesseract', ['--list-langs']);
+  const available = parseTesseractLanguages(status.output ?? status.version ?? '');
+  const missing = required.filter((lang) => !available.includes(lang));
+  return {
+    language,
+    ready: missing.length === 0,
+    missing,
+    available,
+  };
+}
+
+function splitTesseractLanguages(language: string): string[] {
+  return language
+    .split('+')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseTesseractLanguages(output: string): string[] {
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.toLowerCase().startsWith('list of available languages'));
+}
+
 function lineFor(label: string, status: CommandStatus, required: boolean): string {
   const state = status.found ? 'ok' : 'missing';
   const suffix = status.version ? ` - ${status.version}` : '';
   const kind = required ? 'required' : 'optional';
   return `- ${label}: ${state} (${kind})${suffix}`;
+}
+
+function ocrLanguageLine(status: OcrLanguageStatus): string {
+  const state = status.ready ? 'ok' : 'missing';
+  const suffix = status.ready ? status.language : `missing ${status.missing.join(', ') || status.language}`;
+  return `- tesseract languages: ${state} (optional) - ${suffix}`;
 }
 
 export function formatDoctorReport(report: DoctorReport): string {
@@ -79,6 +127,7 @@ export function formatDoctorReport(report: DoctorReport): string {
     lineFor('hyperframes', report.optional.hyperframes, false),
     lineFor('yt-dlp', report.optional['yt-dlp'], false),
     lineFor('tesseract', report.optional.tesseract, false),
+    ocrLanguageLine(report.optional.ocrLanguages),
     '',
     `Analyze ready: ${report.readyForAnalyze ? 'yes' : 'no'}`,
     `Render ready: ${report.readyForRender ? 'yes' : 'no'}`,
@@ -96,6 +145,11 @@ export function formatDoctorReport(report: DoctorReport): string {
   }
   if (!report.optional.tesseract.found) {
     guidance.push('Install Tesseract OCR, plus Chinese language data when needed, to enable caption text extraction.');
+  }
+  if (report.optional.tesseract.found && !report.optional.ocrLanguages.ready) {
+    guidance.push(
+      `Install Tesseract language data for ${report.optional.ocrLanguages.missing.join(', ')}, or set OPENVIDEO_OCR_LANG to an installed language.`,
+    );
   }
   if (guidance.length > 0) {
     lines.push('', 'Guidance:', ...guidance.map((item) => `- ${item}`));

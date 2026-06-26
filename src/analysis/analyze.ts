@@ -53,6 +53,7 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
       createUrlDownloader(input.downloader ?? 'auto', {
         cookiesFile: input.cookiesFile,
         cookiesFromBrowser: input.cookiesFromBrowser,
+        browserStoragePath: input.browserStoragePath,
       }),
   });
   const probe = deps.probe ?? probeVideo;

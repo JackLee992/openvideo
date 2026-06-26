@@ -84,7 +84,6 @@ describe('detectTranscript', () => {
     });
 
     expect(calls[0]).toEqual([
-      'hyperframes',
       'transcribe',
       '--json',
       '--optional',

@@ -1,4 +1,4 @@
-export type DownloadProviderName = 'yt-dlp' | 'jiji' | 'douyin-api';
+export type DownloadProviderName = 'yt-dlp' | 'jiji' | 'browser' | 'douyin-api';
 
 export interface DownloadProvider {
   name: DownloadProviderName;

@@ -14,6 +14,7 @@ const HELP_TEXT = `Usage: openvideo <command> [options]
 
 Commands:
   doctor                         Check local dependencies
+  auth douyin                    Open QR-code login and export Douyin cookies
   download <url>                 Download a video URL with provider fallback
   analyze <file-or-url>           Analyze a local video file or direct video URL
   brief <run-dir>                 Generate a HyperFrames-ready brief from a run
@@ -21,6 +22,7 @@ Commands:
 
 Examples:
   openvideo doctor
+  openvideo auth douyin
   openvideo download "https://www.douyin.com/video/..."
   openvideo analyze ./reference.mp4
   openvideo brief runs/2026-06-23-demo --goal "做一个 AI 工具教程类抖音短视频"
@@ -41,6 +43,11 @@ export async function runCli(argv: string[], io: CliIO = DEFAULT_IO): Promise<nu
   if (command === 'doctor') {
     const { runDoctor } = await import('./commands/doctor.js');
     return runDoctor(io);
+  }
+
+  if (command === 'auth') {
+    const { runAuth } = await import('./commands/auth.js');
+    return runAuth(argv.slice(1), io);
   }
 
   if (command === 'download') {

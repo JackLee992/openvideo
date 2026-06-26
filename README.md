@@ -58,6 +58,21 @@ brew install yt-dlp
 openvideo analyze "https://www.douyin.com/video/..."
 ```
 
+For Douyin links that require a logged-in browser session, export cookies with QR-code login first:
+
+```bash
+npm install --save-dev playwright
+openvideo auth douyin \
+  --out .openvideo/cookies/douyin-cookies.txt \
+  --storage .openvideo/cookies/douyin-storage.json
+openvideo analyze "https://v.douyin.com/..." \
+  --downloader auto \
+  --cookies .openvideo/cookies/douyin-cookies.txt \
+  --storage .openvideo/cookies/douyin-storage.json
+```
+
+OpenVideo uses your installed Google Chrome for Playwright browser flows by default. Set `OPENVIDEO_PLAYWRIGHT_CHANNEL=bundled` and run `npx playwright install chromium` if you prefer Playwright's bundled Chromium.
+
 Download first, then inspect the downloaded file:
 
 ```bash
@@ -71,10 +86,28 @@ openvideo download "https://www.douyin.com/video/..." --downloader yt-dlp --cook
 openvideo analyze "https://www.douyin.com/video/..." --downloader yt-dlp --cookies ./cookies.txt
 ```
 
+If cookie-only HTTP downloaders fail because the platform requires browser-generated page state, use the browser downloader. It opens Chromium, lets the real page generate the playable `<video>` URL, then downloads that media into `source.mp4`:
+
+```bash
+openvideo download "https://www.douyin.com/video/..." \
+  --downloader browser \
+  --cookies .openvideo/cookies/douyin-cookies.txt \
+  --storage .openvideo/cookies/douyin-storage.json
+
+openvideo analyze "https://www.douyin.com/video/..." \
+  --downloader browser \
+  --cookies .openvideo/cookies/douyin-cookies.txt \
+  --storage .openvideo/cookies/douyin-storage.json \
+  --full
+```
+
 Clone Douyin-specific fallback tools:
 
 ```bash
 scripts/downloaders/clone-downloaders.sh
+python3 -m venv .openvideo/downloaders/jiji262-douyin-downloader/.venv
+.openvideo/downloaders/jiji262-douyin-downloader/.venv/bin/pip install -r .openvideo/downloaders/jiji262-douyin-downloader/requirements.txt
+export OPENVIDEO_JIJI_PYTHON_COMMAND="$PWD/.openvideo/downloaders/jiji262-douyin-downloader/.venv/bin/python3"
 openvideo download "https://www.douyin.com/video/..." --downloader jiji
 ```
 
@@ -114,6 +147,19 @@ OPENVIDEO_SMOKE_DIR=.openvideo/smoke/douyin
 OPENVIDEO_SMOKE_COOKIES=./cookies.txt
 OPENVIDEO_SMOKE_COOKIES_FROM_BROWSER=chrome
 ```
+
+Run the checked-in real Douyin sample workflow with QR-code login, browser download, duration validation, and HyperFrames ASR:
+
+```bash
+OPENVIDEO_AUTH=1 \
+OPENVIDEO_SAMPLE_MIN_DURATION_SEC=90 \
+scripts/samples/analyze-real-douyin.sh \
+  "https://v.douyin.com/HNHOupn_zYI/" \
+  shanghai-12345-committee \
+  auto
+```
+
+The real sample reports live in `samples/real-douyin/`. They keep only links, commands, metrics, and human-readable analysis in Git; raw videos, cookies, browser storage, and signed media URLs stay under `.openvideo/`.
 
 This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.
 `shot-breakdown.json` and `edit-rhythm.json` include ffmpeg-based scene cut detection for deterministic first-pass shot ranges.

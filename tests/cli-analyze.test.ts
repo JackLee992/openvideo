@@ -44,6 +44,8 @@ describe('openvideo analyze cli', () => {
         'chrome',
         '--cookies',
         '/tmp/cookies.txt',
+        '--storage',
+        '/tmp/douyin-storage.json',
       ],
       io,
       {
@@ -53,6 +55,7 @@ describe('openvideo analyze cli', () => {
             downloader: 'yt-dlp',
             cookiesFromBrowser: 'chrome',
             cookiesFile: '/tmp/cookies.txt',
+            browserStoragePath: '/tmp/douyin-storage.json',
           });
           return {
             runId: 'run-1',

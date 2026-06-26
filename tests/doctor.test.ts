@@ -31,13 +31,15 @@ describe('doctor report', () => {
     expect(calls).toContainEqual({ command: 'ffprobe', args: ['-version'] });
     expect(calls).toContainEqual({ command: 'hyperframes', args: ['--version'] });
     expect(calls).toContainEqual({ command: 'tesseract', args: ['--version'] });
+    expect(calls).toContainEqual({ command: 'tesseract', args: ['--list-langs'] });
   });
 
   it('reports required and optional dependency status', async () => {
-    const checker: DependencyChecker = async (command) => ({
+    const checker: DependencyChecker = async (command, args) => ({
       command,
       found: command !== 'yt-dlp',
       version: command === 'ffmpeg' ? 'ffmpeg version 8.1.2' : undefined,
+      output: command === 'tesseract' && args?.[0] === '--list-langs' ? 'List of available languages:\nchi_sim\neng' : undefined,
     });
 
     const report = await createDoctorReport(checker);
@@ -47,8 +49,33 @@ describe('doctor report', () => {
     expect(report.optional.hyperframes.found).toBe(true);
     expect(report.optional['yt-dlp'].found).toBe(false);
     expect(report.optional.tesseract.found).toBe(true);
+    expect(report.optional.ocrLanguages.ready).toBe(true);
     expect(report.readyForAnalyze).toBe(true);
     expect(report.readyForRender).toBe(true);
+  });
+
+  it('reports missing OCR language data', async () => {
+    const previous = process.env.OPENVIDEO_OCR_LANG;
+    process.env.OPENVIDEO_OCR_LANG = 'chi_sim+eng';
+    const checker: DependencyChecker = async (command, args) => ({
+      command,
+      found: true,
+      output: command === 'tesseract' && args?.[0] === '--list-langs' ? 'List of available languages:\neng\nosd' : undefined,
+    });
+
+    try {
+      const text = formatDoctorReport(await createDoctorReport(checker));
+
+      expect(text).toContain('tesseract languages: missing');
+      expect(text).toContain('chi_sim');
+      expect(text).toContain('OPENVIDEO_OCR_LANG');
+    } finally {
+      if (previous === undefined) {
+        delete process.env.OPENVIDEO_OCR_LANG;
+      } else {
+        process.env.OPENVIDEO_OCR_LANG = previous;
+      }
+    }
   });
 
   it('formats actionable missing dependency guidance', async () => {

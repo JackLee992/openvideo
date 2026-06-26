@@ -70,6 +70,12 @@ function parseDownloadArgs(argv: string[]): ParseResult {
       value.cookiesFromBrowser = cookiesFromBrowser;
       continue;
     }
+    if (arg === '--storage') {
+      const browserStoragePath = rest[++i];
+      if (!browserStoragePath) return { ok: false, error: 'Missing value for --storage.' };
+      value.browserStoragePath = browserStoragePath;
+      continue;
+    }
     return { ok: false, error: `Unknown download option: ${arg}` };
   }
 
@@ -78,7 +84,7 @@ function parseDownloadArgs(argv: string[]): ParseResult {
 
 function downloadUsage(): string {
   return [
-    'Usage: openvideo download <url> [--out downloads] [--downloader auto|yt-dlp|jiji|douyin-api] [--cookies <file>] [--cookies-from-browser <browser>]',
-    'Downloader strategies: auto, yt-dlp, jiji, douyin-api',
+    'Usage: openvideo download <url> [--out downloads] [--downloader auto|yt-dlp|jiji|browser|douyin-api] [--cookies <file>] [--cookies-from-browser <browser>] [--storage <playwright-storage.json>]',
+    'Downloader strategies: auto, yt-dlp, jiji, browser, douyin-api',
   ].join('\n');
 }

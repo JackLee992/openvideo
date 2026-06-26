@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { resolveCommand } from '../utils/binaries.js';
 
 export interface TranscriptWord {
   id: string;
@@ -42,7 +43,6 @@ export async function detectTranscript(
   const model = options.model ?? process.env.OPENVIDEO_TRANSCRIBE_MODEL ?? 'small';
   const language = options.language ?? process.env.OPENVIDEO_TRANSCRIBE_LANGUAGE;
   const args = [
-    'hyperframes',
     'transcribe',
     '--json',
     '--optional',
@@ -121,9 +121,29 @@ async function runHyperframesTranscribe(
   args: string[],
 ): Promise<HyperframesTranscribeRunResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn('npx', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(resolveCommand('hyperframes'), args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
+    let settled = false;
+    const timeoutMs = hyperframesTranscribeTimeoutMs();
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill('SIGTERM');
+      resolve({
+        stdout,
+        stderr: stderr || `hyperframes transcribe timed out after ${timeoutMs}ms`,
+        code: 124,
+      });
+    }, timeoutMs);
+
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      callback();
+    };
+
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
@@ -132,9 +152,13 @@ async function runHyperframesTranscribe(
     child.stderr.on('data', (chunk) => {
       stderr += chunk;
     });
-    child.on('error', reject);
+    child.on('error', (error) => {
+      settle(() => reject(error));
+    });
     child.on('close', (code) => {
-      resolve({ stdout, stderr, code: code ?? 1 });
+      settle(() => {
+        resolve({ stdout, stderr, code: code ?? 1 });
+      });
     });
   });
 }
@@ -205,9 +229,14 @@ function unavailableTranscript(
 function transcriptErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if ((error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
-    return 'npx or hyperframes is not installed or not on PATH. Install HyperFrames to enable ASR transcript extraction.';
+    return 'hyperframes is not installed or not on PATH. Install HyperFrames to enable ASR transcript extraction.';
   }
   return message;
+}
+
+function hyperframesTranscribeTimeoutMs(): number {
+  const value = Number(process.env.OPENVIDEO_TRANSCRIBE_TIMEOUT_MS);
+  return Number.isFinite(value) && value > 0 ? value : 120_000;
 }
 
 function roundSec(value: number): number {

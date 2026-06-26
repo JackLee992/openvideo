@@ -58,3 +58,9 @@ for tool in "$@"; do
 done
 
 echo "Downloader tools are under: $DOWNLOADERS_DIR"
+if [[ -d "$DOWNLOADERS_DIR/jiji262-douyin-downloader" ]]; then
+  echo "For jiji, install its Python dependencies before first use:"
+  echo "  python3 -m venv \"$DOWNLOADERS_DIR/jiji262-douyin-downloader/.venv\""
+  echo "  \"$DOWNLOADERS_DIR/jiji262-douyin-downloader/.venv/bin/pip\" install -r \"$DOWNLOADERS_DIR/jiji262-douyin-downloader/requirements.txt\""
+  echo "  export OPENVIDEO_JIJI_PYTHON_COMMAND=\"$DOWNLOADERS_DIR/jiji262-douyin-downloader/.venv/bin/python3\""
+fi
