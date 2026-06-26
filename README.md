@@ -180,13 +180,13 @@ This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brie
 `captions.json` and `caption-style.md` include optional Tesseract OCR observations from sampled frames when OCR is installed.
 `transcript.json` and `script-notes.md` include optional HyperFrames ASR word timestamps when the source has audio and transcription is available.
 
-Generate a human-readable report from an analyzed run:
+Generate a human-readable report and local browser workbench from an analyzed run:
 
 ```bash
 openvideo report runs/<run-id>
 ```
 
-This writes `analysis/report.md` and `analysis/transcript-readable.md`.
+This writes `analysis/report.md`, `analysis/transcript-readable.md`, and `report/index.html`. The browser workbench brings run metadata, storyboard timeline, transition table, motion/camera summary, OCR evidence, ASR transcript, HyperFrames brief, and sampled frames into one page.
 
 Create a goal-specific generation brief from an analyzed run:
 
@@ -218,7 +218,7 @@ npx hyperframes render --quality draft --output out.mp4
 - downloader fallback providers: `yt-dlp`, browser-backed capture, jiji, and Douyin API
 - preview-media detection with `--min-duration` and `download-diagnostics.json`
 - deterministic analysis artifacts for frames, scenes, motion, audio cues, OCR captions, and HyperFrames ASR
-- `report` command for `analysis/report.md` and segmented `analysis/transcript-readable.md`
+- `report` command for `analysis/report.md`, segmented `analysis/transcript-readable.md`, and `report/index.html`
 - `brief` and `render` preparation commands for downstream HyperFrames workflows
 - manifest-backed real Douyin sample reports and regression scripts under `samples/real-douyin/`
 
