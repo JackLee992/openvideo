@@ -6,6 +6,7 @@ import type { AudioDetectionResult } from './audio.js';
 import type { CaptionDetectionResult } from './captions.js';
 import type { ExtractedFrame } from './frames.js';
 import { buildSceneMotionProfiles, type VisualMotionDetectionResult } from './motion.js';
+import { buildAnalysisPlaybook, renderPlaybookMarkdown } from './playbook.js';
 import type { VideoMetadata } from './probe.js';
 import type { SceneDetectionResult } from './scenes.js';
 import { buildStoryboardAnalysis, type StoryboardAnalysis } from './storyboard.js';
@@ -42,6 +43,8 @@ export interface AnalysisArtifactResult {
   storyboardPath: string;
   transitionAnalysisPath: string;
   motionAnalysisPath: string;
+  playbookPath: string;
+  playbookNotesPath: string;
   captionsPath: string;
   transcriptPath: string;
   scriptNotesPath: string;
@@ -110,6 +113,7 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   ];
   const cuts = input.sceneDetection?.cuts ?? [];
   const sceneMotionProfiles = buildSceneMotionProfiles(scenes, input.motionDetection);
+  const analysisPlaybook = buildAnalysisPlaybook(input.category, { runId: input.layout.runId });
   const storyboardAnalysis = buildStoryboardAnalysis({
     runId: input.layout.runId,
     category: input.category,
@@ -169,10 +173,12 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   const storyboardPath = path.join(input.layout.analysisDir, 'storyboard.json');
   const transitionAnalysisPath = path.join(input.layout.analysisDir, 'transition-analysis.json');
   const motionAnalysisPath = path.join(input.layout.analysisDir, 'motion-analysis.json');
+  const playbookPath = path.join(input.layout.analysisDir, 'playbook.json');
   const captionsPath = path.join(input.layout.analysisDir, 'captions.json');
   const transcriptPath = path.join(input.layout.analysisDir, 'transcript.json');
   const directorNotesPath = path.join(input.layout.analysisDir, 'director-notes.md');
   const editorNotesPath = path.join(input.layout.analysisDir, 'editor-notes.md');
+  const playbookNotesPath = path.join(input.layout.analysisDir, 'playbook.md');
   const captionStylePath = path.join(input.layout.analysisDir, 'caption-style.md');
   const motionLanguagePath = path.join(input.layout.analysisDir, 'motion-language.md');
   const soundNotesPath = path.join(input.layout.analysisDir, 'sound-notes.md');
@@ -186,10 +192,12 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   await writeJson(storyboardPath, storyboardAnalysis);
   await writeJson(transitionAnalysisPath, transitionAnalysisDoc(storyboardAnalysis));
   await writeJson(motionAnalysisPath, motionAnalysisDoc(input, sceneMotionProfiles));
+  await writeJson(playbookPath, analysisPlaybook);
   await writeJson(captionsPath, captionsDoc(input));
   await writeJson(transcriptPath, transcriptDoc(input));
   await writeFile(directorNotesPath, directorNotes(input, aspectRatio));
   await writeFile(editorNotesPath, editorNotes(storyboardAnalysis));
+  await writeFile(playbookNotesPath, renderPlaybookMarkdown(analysisPlaybook));
   await writeFile(captionStylePath, captionStyle(input));
   await writeFile(motionLanguagePath, motionLanguage(input));
   await writeFile(soundNotesPath, soundNotes(input));
@@ -204,6 +212,8 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     storyboardPath,
     transitionAnalysisPath,
     motionAnalysisPath,
+    playbookPath,
+    playbookNotesPath,
     captionsPath,
     transcriptPath,
     scriptNotesPath,

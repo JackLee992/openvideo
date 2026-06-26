@@ -17,8 +17,9 @@ Commands:
   auth douyin                    Open QR-code login and export Douyin cookies
   download <url>                 Download a video URL with provider fallback
   analyze <file-or-url>           Analyze a local video file or direct video URL
-  report <run-dir>                Generate a human-readable analysis report
+  report <run-dir>                Generate analysis reports and a browser workbench
   brief <run-dir>                 Generate a HyperFrames-ready brief from a run
+  report <run-dir>                Create a local browser workbench for a run
   render <run-dir>                Render an original video from a run brief
 
 Examples:
@@ -28,6 +29,7 @@ Examples:
   openvideo analyze ./reference.mp4
   openvideo report runs/2026-06-23-demo
   openvideo brief runs/2026-06-23-demo --goal "做一个 AI 工具教程类抖音短视频"
+  openvideo report runs/2026-06-23-demo
   openvideo render runs/2026-06-23-demo --prompt "介绍一个能自动生成设计稿的工具"
 `;
 
