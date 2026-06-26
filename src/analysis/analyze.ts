@@ -7,6 +7,7 @@ import { detectAudioCues, type AudioDetectionResult } from './audio.js';
 import { writeAnalysisArtifacts, type AnalysisArtifactResult, type VideoCategory } from './artifacts.js';
 import { detectCaptionsInFrames, type CaptionDetectionResult } from './captions.js';
 import { extractFrames, type ExtractedFrame } from './frames.js';
+import { detectVisualMotion, type VisualMotionDetectionResult } from './motion.js';
 import { probeVideo, type VideoMetadata } from './probe.js';
 import { detectScenes, type SceneDetectionResult } from './scenes.js';
 import { detectTranscript, transcriptUnavailable, type TranscriptDetectionResult } from './transcript.js';
@@ -27,6 +28,7 @@ export interface AnalyzeDeps {
   detectAudio?: (inputPath: string) => Promise<AudioDetectionResult>;
   detectCaptions?: (frames: ExtractedFrame[]) => Promise<CaptionDetectionResult>;
   detectTranscript?: (inputPath: string) => Promise<TranscriptDetectionResult>;
+  detectMotion?: (inputPath: string, durationSec: number) => Promise<VisualMotionDetectionResult>;
   urlDownloader?: UrlDownloader;
 }
 
@@ -49,10 +51,12 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
   const audioDetector = deps.detectAudio ?? ((sourcePath) => detectAudioCues(sourcePath));
   const captionDetector = deps.detectCaptions ?? ((sampledFrames) => detectCaptionsInFrames(sampledFrames));
   const transcriptDetector = deps.detectTranscript ?? ((sourcePath) => detectTranscript(sourcePath));
+  const motionDetector = deps.detectMotion ?? ((sourcePath, durationSec) => detectVisualMotion(sourcePath, durationSec));
   const metadata = await probe(source.localPath);
   await mkdir(layout.framesDir, { recursive: true });
   const frames = await frameExtractor(source.localPath, layout.framesDir);
   const sceneDetection = await sceneDetector(source.localPath, metadata.durationSec);
+  const motionDetection = await motionDetector(source.localPath, metadata.durationSec);
   const audioDetection = metadata.hasAudio ? await audioDetector(source.localPath) : undefined;
   const transcriptDetection = metadata.hasAudio
     ? await transcriptDetector(source.localPath)
@@ -65,6 +69,7 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
     metadata,
     frames,
     sceneDetection,
+    motionDetection,
     audioDetection,
     captionDetection,
     transcriptDetection,

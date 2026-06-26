@@ -5,6 +5,7 @@ import type { NormalizedSource } from '../sources/source.js';
 import type { AudioDetectionResult } from './audio.js';
 import type { CaptionDetectionResult } from './captions.js';
 import type { ExtractedFrame } from './frames.js';
+import { buildSceneMotionProfiles, type VisualMotionDetectionResult } from './motion.js';
 import type { VideoMetadata } from './probe.js';
 import type { SceneDetectionResult } from './scenes.js';
 import { buildStoryboardAnalysis, type StoryboardAnalysis } from './storyboard.js';
@@ -28,6 +29,7 @@ export interface AnalysisArtifactInput {
   metadata: VideoMetadata;
   frames: ExtractedFrame[];
   sceneDetection?: SceneDetectionResult;
+  motionDetection?: VisualMotionDetectionResult;
   audioDetection?: AudioDetectionResult;
   captionDetection?: CaptionDetectionResult;
   transcriptDetection?: TranscriptDetectionResult;
@@ -39,6 +41,7 @@ export interface AnalysisArtifactResult {
   editRhythmPath: string;
   storyboardPath: string;
   transitionAnalysisPath: string;
+  motionAnalysisPath: string;
   captionsPath: string;
   transcriptPath: string;
   scriptNotesPath: string;
@@ -73,6 +76,14 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     audioCueCount: input.audioDetection?.cues.length ?? 0,
     captionObservationCount: input.captionDetection?.observations.length ?? 0,
     transcriptWordCount: input.transcriptDetection?.words.length ?? 0,
+    visualMotion: {
+      provider: input.motionDetection?.provider ?? 'ffmpeg-raw-gray',
+      available: input.motionDetection?.available ?? false,
+      cameraMovement: input.motionDetection?.cameraMovement ?? 'unknown',
+      motionIntensity: input.motionDetection?.motionIntensity ?? 'low',
+      dominantDirection: input.motionDetection?.dominantDirection ?? 'none',
+      ...(input.motionDetection?.error ? { error: input.motionDetection.error } : {}),
+    },
     captionOcr: {
       provider: input.captionDetection?.provider ?? 'tesseract',
       available: input.captionDetection?.available ?? false,
@@ -98,6 +109,7 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     },
   ];
   const cuts = input.sceneDetection?.cuts ?? [];
+  const sceneMotionProfiles = buildSceneMotionProfiles(scenes, input.motionDetection);
   const storyboardAnalysis = buildStoryboardAnalysis({
     runId: input.layout.runId,
     category: input.category,
@@ -120,7 +132,12 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
       editorialRole: storyboardAnalysis.beats.find((beat) => beat.sceneIndex === scene.index)?.role ?? 'single-scene',
       pacing: storyboardAnalysis.beats.find((beat) => beat.sceneIndex === scene.index)?.pacing ?? 'held',
       shotScale: input.category === 'product-demo' ? 'screen capture / product frame' : 'unknown',
-      cameraMovement: 'unknown',
+      cameraMovement:
+        sceneMotionProfiles.find((profile) => profile.sceneIndex === scene.index)?.cameraMovement ?? 'unknown',
+      motionIntensity:
+        sceneMotionProfiles.find((profile) => profile.sceneIndex === scene.index)?.motionIntensity ?? 'low',
+      dominantMotionDirection:
+        sceneMotionProfiles.find((profile) => profile.sceneIndex === scene.index)?.dominantDirection ?? 'none',
       cutIn: scene.index === 1 ? 'opening' : 'scene-cut',
       sampledFrames: input.frames.map((frame) => frame.fileName),
     })),
@@ -151,6 +168,7 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   const editRhythmPath = path.join(input.layout.analysisDir, 'edit-rhythm.json');
   const storyboardPath = path.join(input.layout.analysisDir, 'storyboard.json');
   const transitionAnalysisPath = path.join(input.layout.analysisDir, 'transition-analysis.json');
+  const motionAnalysisPath = path.join(input.layout.analysisDir, 'motion-analysis.json');
   const captionsPath = path.join(input.layout.analysisDir, 'captions.json');
   const transcriptPath = path.join(input.layout.analysisDir, 'transcript.json');
   const directorNotesPath = path.join(input.layout.analysisDir, 'director-notes.md');
@@ -167,6 +185,7 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   await writeJson(editRhythmPath, editRhythm);
   await writeJson(storyboardPath, storyboardAnalysis);
   await writeJson(transitionAnalysisPath, transitionAnalysisDoc(storyboardAnalysis));
+  await writeJson(motionAnalysisPath, motionAnalysisDoc(input, sceneMotionProfiles));
   await writeJson(captionsPath, captionsDoc(input));
   await writeJson(transcriptPath, transcriptDoc(input));
   await writeFile(directorNotesPath, directorNotes(input, aspectRatio));
@@ -184,6 +203,7 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     editRhythmPath,
     storyboardPath,
     transitionAnalysisPath,
+    motionAnalysisPath,
     captionsPath,
     transcriptPath,
     scriptNotesPath,
@@ -224,6 +244,26 @@ function transitionAnalysisDoc(analysis: StoryboardAnalysis): object {
     progressionCurve: analysis.progressionCurve,
     transitions: analysis.transitions,
     editorChecklist: analysis.editorChecklist,
+  };
+}
+
+function motionAnalysisDoc(
+  input: AnalysisArtifactInput,
+  sceneMotionProfiles: ReturnType<typeof buildSceneMotionProfiles>,
+): object {
+  return {
+    runId: input.layout.runId,
+    provider: input.motionDetection?.provider ?? 'ffmpeg-raw-gray',
+    available: input.motionDetection?.available ?? false,
+    frameCount: input.motionDetection?.frameCount ?? 0,
+    averageFrameDiff: input.motionDetection?.averageFrameDiff ?? 0,
+    centroidShift: input.motionDetection?.centroidShift ?? { x: 0, y: 0 },
+    motionIntensity: input.motionDetection?.motionIntensity ?? 'low',
+    cameraMovement: input.motionDetection?.cameraMovement ?? 'unknown',
+    dominantDirection: input.motionDetection?.dominantDirection ?? 'none',
+    samples: input.motionDetection?.samples ?? [],
+    sceneProfiles: sceneMotionProfiles,
+    ...(input.motionDetection?.error ? { error: input.motionDetection.error } : {}),
   };
 }
 
@@ -337,9 +377,16 @@ ${observedLines}
 }
 
 function motionLanguage(input: AnalysisArtifactInput): string {
+  const motion = input.motionDetection;
+  const cameraMovement = motion?.cameraMovement ?? 'unknown';
+  const intensity = motion?.motionIntensity ?? 'low';
+  const direction = motion?.dominantDirection ?? 'none';
   return `# Motion Language
 
 - Category: ${input.category}
+- Detected camera movement: ${cameraMovement}.
+- Motion intensity: ${intensity}.
+- Dominant direction: ${direction}.
 - Start with Douyin-safe vertical pacing: fast hook, clear holds, snap transitions, and caption-led emphasis.
 - Convert observed text entrances and graphic movements into HyperFrames timing rules.
 `;
@@ -425,6 +472,8 @@ function videoStyle(input: AnalysisArtifactInput, aspectRatio: string): string {
 
 ## Motion Grammar
 
+- Detected camera movement: ${input.motionDetection?.cameraMovement ?? 'unknown'}.
+- Motion intensity: ${input.motionDetection?.motionIntensity ?? 'low'}.
 - Prefer vertical-safe kinetic type, snap transitions, mask reveals, and short hold times.
 
 ## Sound Guidance

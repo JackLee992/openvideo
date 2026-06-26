@@ -91,6 +91,20 @@ describe('writeAnalysisArtifacts', () => {
         ],
         text: '开场 钩子',
       },
+      motionDetection: {
+        available: true,
+        provider: 'ffmpeg-raw-gray',
+        frameCount: 2,
+        averageFrameDiff: 0.42,
+        centroidShift: { x: 0.55, y: 0 },
+        motionIntensity: 'high',
+        cameraMovement: 'pan-or-reframe',
+        dominantDirection: 'right',
+        samples: [
+          { index: 1, timestampSec: 0, centroidX: 0.25, centroidY: 0.5, brightness: 0.4 },
+          { index: 2, timestampSec: 1, centroidX: 0.8, centroidY: 0.5, brightness: 0.4 },
+        ],
+      },
     };
 
     const result = await writeAnalysisArtifacts(input);
@@ -100,6 +114,7 @@ describe('writeAnalysisArtifacts', () => {
     await expect(stat(path.join(layout.analysisDir, 'edit-rhythm.json'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'storyboard.json'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'transition-analysis.json'))).resolves.toBeTruthy();
+    await expect(stat(path.join(layout.analysisDir, 'motion-analysis.json'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'director-notes.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'editor-notes.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'caption-style.md'))).resolves.toBeTruthy();
@@ -115,6 +130,7 @@ describe('writeAnalysisArtifacts', () => {
     const editRhythm = JSON.parse(await readFile(path.join(layout.analysisDir, 'edit-rhythm.json'), 'utf8'));
     const storyboard = JSON.parse(await readFile(path.join(layout.analysisDir, 'storyboard.json'), 'utf8'));
     const transitionAnalysis = JSON.parse(await readFile(path.join(layout.analysisDir, 'transition-analysis.json'), 'utf8'));
+    const motionAnalysis = JSON.parse(await readFile(path.join(layout.analysisDir, 'motion-analysis.json'), 'utf8'));
     const captions = JSON.parse(await readFile(path.join(layout.analysisDir, 'captions.json'), 'utf8'));
     const transcript = JSON.parse(await readFile(path.join(layout.analysisDir, 'transcript.json'), 'utf8'));
     const captionStyle = await readFile(path.join(layout.analysisDir, 'caption-style.md'), 'utf8');
@@ -133,6 +149,8 @@ describe('writeAnalysisArtifacts', () => {
     ]);
     expect(storyboard.beats.map((beat: { role: string }) => beat.role)).toEqual(['hook', 'proof', 'payoff']);
     expect(transitionAnalysis.transitions[0].type).toBe('hard-cut');
+    expect(motionAnalysis.cameraMovement).toBe('pan-or-reframe');
+    expect(shotBreakdown.shots[0].cameraMovement).toBe('pan-or-reframe');
     expect(editorNotes).toContain('Storyboard Beats');
     expect(editRhythm.audioCues).toEqual([
       { timestampSec: 0.52, type: 'sound-start', confidence: 'ffmpeg-silencedetect' },
@@ -227,6 +245,20 @@ describe('analyzeVideo', () => {
           words: [{ id: 'w0', text: '口播', start: 0.2, end: 0.7 }],
           text: '口播',
         }),
+        detectMotion: async () => ({
+          available: true,
+          provider: 'ffmpeg-raw-gray',
+          frameCount: 2,
+          averageFrameDiff: 0,
+          centroidShift: { x: 0, y: 0 },
+          motionIntensity: 'low',
+          cameraMovement: 'locked-off',
+          dominantDirection: 'none',
+          samples: [
+            { index: 1, timestampSec: 0, centroidX: 0.5, centroidY: 0.5, brightness: 0.3 },
+            { index: 2, timestampSec: 1, centroidX: 0.5, centroidY: 0.5, brightness: 0.3 },
+          ],
+        }),
       },
     );
 
@@ -245,6 +277,7 @@ describe('analyzeVideo', () => {
     ]);
     expect(captions.observations[0].text).toBe('首屏大标题');
     expect(transcript.words[0].text).toBe('口播');
+    expect(shotBreakdown.shots[0].cameraMovement).toBe('locked-off');
     expect(storyboard.transitions[0].type).toBe('hard-cut');
   });
 
@@ -307,6 +340,18 @@ describe('analyzeVideo', () => {
             model: 'small',
             words: [],
             text: '',
+            error: 'not needed in this test',
+          }),
+          detectMotion: async () => ({
+            available: false,
+            provider: 'ffmpeg-raw-gray',
+            frameCount: 0,
+            averageFrameDiff: 0,
+            centroidShift: { x: 0, y: 0 },
+            motionIntensity: 'low',
+            cameraMovement: 'unknown',
+            dominantDirection: 'none',
+            samples: [],
             error: 'not needed in this test',
           }),
         } as Parameters<typeof analyzeVideo>[1],

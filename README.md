@@ -109,6 +109,7 @@ OPENVIDEO_SMOKE_DIR=.openvideo/smoke/douyin
 This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.
 `shot-breakdown.json` and `edit-rhythm.json` include ffmpeg-based scene cut detection for deterministic first-pass shot ranges.
 `storyboard.json`, `transition-analysis.json`, and `editor-notes.md` organize scenes into hook/proof/payoff beats, pacing roles, and cut-type evidence for director/editor review.
+`motion-analysis.json` estimates visual motion, dominant direction, and camera movement hints such as locked-off, pan/reframe, or push-in/graphic motion.
 `edit-rhythm.json` and `sound-notes.md` also include ffmpeg-based sound-start cues from silence detection when the source has audio.
 `captions.json` and `caption-style.md` include optional Tesseract OCR observations from sampled frames when OCR is installed.
 `transcript.json` and `script-notes.md` include optional HyperFrames ASR word timestamps when the source has audio and transcription is available.
