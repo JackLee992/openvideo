@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { RunLayout } from '../project/paths.js';
 import type { NormalizedSource } from '../sources/source.js';
 import type { AudioDetectionResult } from './audio.js';
+import type { CaptionDetectionResult } from './captions.js';
 import type { ExtractedFrame } from './frames.js';
 import type { VideoMetadata } from './probe.js';
 import type { SceneDetectionResult } from './scenes.js';
@@ -26,12 +27,14 @@ export interface AnalysisArtifactInput {
   frames: ExtractedFrame[];
   sceneDetection?: SceneDetectionResult;
   audioDetection?: AudioDetectionResult;
+  captionDetection?: CaptionDetectionResult;
 }
 
 export interface AnalysisArtifactResult {
   metadataPath: string;
   shotBreakdownPath: string;
   editRhythmPath: string;
+  captionsPath: string;
   videoStylePath: string;
   hyperframesBriefPath: string;
 }
@@ -61,6 +64,13 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     },
     frameSample: input.frames.map((frame) => frame.fileName),
     audioCueCount: input.audioDetection?.cues.length ?? 0,
+    captionObservationCount: input.captionDetection?.observations.length ?? 0,
+    captionOcr: {
+      provider: input.captionDetection?.provider ?? 'tesseract',
+      available: input.captionDetection?.available ?? false,
+      language: input.captionDetection?.language ?? 'unknown',
+      ...(input.captionDetection?.error ? { error: input.captionDetection.error } : {}),
+    },
     raw: input.metadata.raw,
   };
 
@@ -111,6 +121,7 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   const metadataPath = path.join(input.layout.analysisDir, 'metadata.json');
   const shotBreakdownPath = path.join(input.layout.analysisDir, 'shot-breakdown.json');
   const editRhythmPath = path.join(input.layout.analysisDir, 'edit-rhythm.json');
+  const captionsPath = path.join(input.layout.analysisDir, 'captions.json');
   const directorNotesPath = path.join(input.layout.analysisDir, 'director-notes.md');
   const captionStylePath = path.join(input.layout.analysisDir, 'caption-style.md');
   const motionLanguagePath = path.join(input.layout.analysisDir, 'motion-language.md');
@@ -121,6 +132,7 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
   await writeJson(metadataPath, metadataDoc);
   await writeJson(shotBreakdownPath, shotBreakdown);
   await writeJson(editRhythmPath, editRhythm);
+  await writeJson(captionsPath, captionsDoc(input));
   await writeFile(directorNotesPath, directorNotes(input, aspectRatio));
   await writeFile(captionStylePath, captionStyle(input));
   await writeFile(motionLanguagePath, motionLanguage(input));
@@ -132,8 +144,20 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     metadataPath,
     shotBreakdownPath,
     editRhythmPath,
+    captionsPath,
     videoStylePath,
     hyperframesBriefPath,
+  };
+}
+
+function captionsDoc(input: AnalysisArtifactInput): object {
+  return {
+    runId: input.layout.runId,
+    provider: input.captionDetection?.provider ?? 'tesseract',
+    available: input.captionDetection?.available ?? false,
+    language: input.captionDetection?.language ?? 'unknown',
+    observations: input.captionDetection?.observations ?? [],
+    ...(input.captionDetection?.error ? { error: input.captionDetection.error } : {}),
   };
 }
 
@@ -177,10 +201,34 @@ function directorNotes(input: AnalysisArtifactInput, aspectRatio: string): strin
 `;
 }
 
-function captionStyle(_input: AnalysisArtifactInput): string {
+function captionStyle(input: AnalysisArtifactInput): string {
+  const detection = input.captionDetection;
+  const observations = detection?.observations ?? [];
+  const status = detection?.available ? (observations.length > 0 ? 'observed' : 'none detected') : 'OCR unavailable';
+  const observedLines =
+    observations.length > 0
+      ? observations
+          .map(
+            (observation) =>
+              `- ${observation.frameName}: "${observation.text}" (${observation.confidence.toFixed(1)} confidence)`,
+          )
+          .join('\n')
+      : '- No readable sampled-frame captions were detected.';
+  const unavailableLine =
+    detection && !detection.available && detection.error
+      ? `\n- OCR note: ${detection.error}\n`
+      : '';
   return `# Caption Style
 
-- Caption presence: unknown in deterministic V1.
+- Caption presence: ${status}.
+- OCR provider: ${detection?.provider ?? 'tesseract'} (${detection?.language ?? 'unknown'}).
+- Use recognized wording as source evidence only; do not copy exact source wording into generated scripts.${unavailableLine}
+## Observed OCR Text
+
+${observedLines}
+
+## Style Review Checklist
+
 - Inspect sampled frames for position, line count, stroke, shadow, highlight words, and safe-area usage.
 `;
 }
@@ -238,6 +286,7 @@ function videoStyle(input: AnalysisArtifactInput, aspectRatio: string): string {
 
 ## Caption System
 
+- OCR caption frames observed: ${input.captionDetection?.observations.length ?? 0}.
 - Preserve the idea of caption-led retention, not the original wording.
 
 ## Motion Grammar

@@ -65,6 +65,21 @@ describe('writeAnalysisArtifacts', () => {
         ],
         cues: [{ type: 'sound-start', timestampSec: 0.52, confidence: 'ffmpeg-silencedetect' }],
       },
+      captionDetection: {
+        available: true,
+        provider: 'tesseract',
+        language: 'chi_sim+eng',
+        observations: [
+          {
+            frameIndex: 1,
+            frameName: 'frame-0001.jpg',
+            text: 'AI 工具三步上手',
+            confidence: 87.5,
+            language: 'chi_sim+eng',
+            source: 'tesseract',
+          },
+        ],
+      },
     };
 
     const result = await writeAnalysisArtifacts(input);
@@ -82,6 +97,8 @@ describe('writeAnalysisArtifacts', () => {
     const metadata = JSON.parse(await readFile(path.join(layout.analysisDir, 'metadata.json'), 'utf8'));
     const shotBreakdown = JSON.parse(await readFile(path.join(layout.analysisDir, 'shot-breakdown.json'), 'utf8'));
     const editRhythm = JSON.parse(await readFile(path.join(layout.analysisDir, 'edit-rhythm.json'), 'utf8'));
+    const captions = JSON.parse(await readFile(path.join(layout.analysisDir, 'captions.json'), 'utf8'));
+    const captionStyle = await readFile(path.join(layout.analysisDir, 'caption-style.md'), 'utf8');
     const soundNotes = await readFile(path.join(layout.analysisDir, 'sound-notes.md'), 'utf8');
     expect(metadata.category).toBe('product-demo');
     expect(metadata.video.aspectRatio).toBe('9:16');
@@ -97,6 +114,18 @@ describe('writeAnalysisArtifacts', () => {
       { timestampSec: 0.52, type: 'sound-start', confidence: 'ffmpeg-silencedetect' },
     ]);
     expect(metadata.audioCueCount).toBe(1);
+    expect(metadata.captionObservationCount).toBe(1);
+    expect(captions.observations).toEqual([
+      {
+        frameIndex: 1,
+        frameName: 'frame-0001.jpg',
+        text: 'AI 工具三步上手',
+        confidence: 87.5,
+        language: 'chi_sim+eng',
+        source: 'tesseract',
+      },
+    ]);
+    expect(captionStyle).toContain('AI 工具三步上手');
     expect(soundNotes).toContain('0.52s');
     expect(result.videoStylePath).toBe(path.join(layout.runDir, 'VIDEO_STYLE.md'));
     await expect(readFile(result.videoStylePath, 'utf8')).resolves.toContain('Things Not To Copy');
@@ -147,6 +176,19 @@ describe('analyzeVideo', () => {
           silenceEvents: [],
           cues: [{ type: 'sound-start', timestampSec: 0.4, confidence: 'ffmpeg-silencedetect' }],
         }),
+        detectCaptions: async (frames) => ({
+          available: true,
+          provider: 'tesseract',
+          language: 'chi_sim+eng',
+          observations: frames.map((frame) => ({
+            frameIndex: frame.index,
+            frameName: frame.fileName,
+            text: '首屏大标题',
+            confidence: 93,
+            language: 'chi_sim+eng',
+            source: 'tesseract',
+          })),
+        }),
       },
     );
 
@@ -156,10 +198,12 @@ describe('analyzeVideo', () => {
     await expect(stat(path.join(result.layout.framesDir, 'frame-0001.jpg'))).resolves.toBeTruthy();
     const shotBreakdown = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'shot-breakdown.json'), 'utf8'));
     const editRhythm = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'edit-rhythm.json'), 'utf8'));
+    const captions = JSON.parse(await readFile(path.join(result.layout.analysisDir, 'captions.json'), 'utf8'));
     expect(shotBreakdown.shots).toHaveLength(2);
     expect(editRhythm.audioCues).toEqual([
       { timestampSec: 0.4, type: 'sound-start', confidence: 'ffmpeg-silencedetect' },
     ]);
+    expect(captions.observations[0].text).toBe('首屏大标题');
   });
 
   it('analyzes a platform URL through an injected downloader', async () => {
@@ -208,6 +252,12 @@ describe('analyzeVideo', () => {
             raw: '',
             silenceEvents: [],
             cues: [],
+          }),
+          detectCaptions: async () => ({
+            available: true,
+            provider: 'tesseract',
+            language: 'chi_sim+eng',
+            observations: [],
           }),
         } as Parameters<typeof analyzeVideo>[1],
       );

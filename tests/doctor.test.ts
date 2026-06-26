@@ -30,6 +30,7 @@ describe('doctor report', () => {
     expect(calls).toContainEqual({ command: 'ffmpeg', args: ['-version'] });
     expect(calls).toContainEqual({ command: 'ffprobe', args: ['-version'] });
     expect(calls).toContainEqual({ command: 'hyperframes', args: ['--version'] });
+    expect(calls).toContainEqual({ command: 'tesseract', args: ['--version'] });
   });
 
   it('reports required and optional dependency status', async () => {
@@ -45,6 +46,7 @@ describe('doctor report', () => {
     expect(report.required.ffprobe.found).toBe(true);
     expect(report.optional.hyperframes.found).toBe(true);
     expect(report.optional['yt-dlp'].found).toBe(false);
+    expect(report.optional.tesseract.found).toBe(true);
     expect(report.readyForAnalyze).toBe(true);
     expect(report.readyForRender).toBe(true);
   });
@@ -60,8 +62,10 @@ describe('doctor report', () => {
     expect(text).toContain('ffmpeg: missing');
     expect(text).toContain('Install ffmpeg');
     expect(text).toContain('yt-dlp: missing');
+    expect(text).toContain('tesseract: missing');
     expect(text).toContain('optional');
     expect(text).toContain('platform URLs');
+    expect(text).toContain('OCR');
   });
 
   it('dispatches doctor from the cli', async () => {

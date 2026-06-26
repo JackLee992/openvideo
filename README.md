@@ -27,6 +27,7 @@ OpenVideo is designed for videos you own, have permission to analyze, or can acc
 - ffmpeg and ffprobe for analysis
 - HyperFrames CLI for rendering
 - yt-dlp for Douyin/TikTok-style public platform links
+- Tesseract OCR for sampled-frame caption text extraction
 - optional cloned Douyin-specific downloaders under `.openvideo/downloaders/`
 
 Check your machine:
@@ -70,6 +71,13 @@ scripts/downloaders/clone-downloaders.sh
 openvideo download "https://www.douyin.com/video/..." --downloader jiji
 ```
 
+Enable OCR for Chinese and English captions:
+
+```bash
+brew install tesseract tesseract-lang
+export OPENVIDEO_OCR_LANG=chi_sim+eng
+```
+
 Use an already-running Douyin API service as the final fallback:
 
 ```bash
@@ -80,6 +88,7 @@ openvideo download "https://www.douyin.com/video/..." --downloader douyin-api
 This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.
 `shot-breakdown.json` and `edit-rhythm.json` include ffmpeg-based scene cut detection for deterministic first-pass shot ranges.
 `edit-rhythm.json` and `sound-notes.md` also include ffmpeg-based sound-start cues from silence detection when the source has audio.
+`captions.json` and `caption-style.md` include optional Tesseract OCR observations from sampled frames when OCR is installed.
 
 Create a goal-specific generation brief from an analyzed run:
 

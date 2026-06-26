@@ -12,6 +12,7 @@ export interface DoctorReport {
   optional: {
     hyperframes: CommandStatus;
     'yt-dlp': CommandStatus;
+    tesseract: CommandStatus;
   };
   readyForAnalyze: boolean;
   readyForRender: boolean;
@@ -33,11 +34,12 @@ function nodeStatus(): CommandStatus {
 export async function createDoctorReport(
   checker: DependencyChecker = (command, args) => checkCommand(command, args),
 ): Promise<DoctorReport> {
-  const [ffmpeg, ffprobe, hyperframes, ytdlp] = await Promise.all([
+  const [ffmpeg, ffprobe, hyperframes, ytdlp, tesseract] = await Promise.all([
     checker('ffmpeg', ['-version']),
     checker('ffprobe', ['-version']),
     checker('hyperframes', ['--version']),
     checker('yt-dlp', ['--version']),
+    checker('tesseract', ['--version']),
   ]);
   const required = {
     node: nodeStatus(),
@@ -47,6 +49,7 @@ export async function createDoctorReport(
   const optional = {
     hyperframes,
     'yt-dlp': ytdlp,
+    tesseract,
   };
   return {
     required,
@@ -75,6 +78,7 @@ export function formatDoctorReport(report: DoctorReport): string {
     'Optional:',
     lineFor('hyperframes', report.optional.hyperframes, false),
     lineFor('yt-dlp', report.optional['yt-dlp'], false),
+    lineFor('tesseract', report.optional.tesseract, false),
     '',
     `Analyze ready: ${report.readyForAnalyze ? 'yes' : 'no'}`,
     `Render ready: ${report.readyForRender ? 'yes' : 'no'}`,
@@ -89,6 +93,9 @@ export function formatDoctorReport(report: DoctorReport): string {
   }
   if (!report.optional['yt-dlp'].found) {
     guidance.push('yt-dlp is optional for local files, but required for supported public platform URLs.');
+  }
+  if (!report.optional.tesseract.found) {
+    guidance.push('Install Tesseract OCR, plus Chinese language data when needed, to enable caption text extraction.');
   }
   if (guidance.length > 0) {
     lines.push('', 'Guidance:', ...guidance.map((item) => `- ${item}`));

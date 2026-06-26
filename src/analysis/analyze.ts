@@ -5,6 +5,7 @@ import { normalizeSource, type UrlDownloader } from '../sources/source.js';
 import { createDownloadProviders, downloadWithFallback, type DownloadStrategy } from '../downloaders/providers.js';
 import { detectAudioCues, type AudioDetectionResult } from './audio.js';
 import { writeAnalysisArtifacts, type AnalysisArtifactResult, type VideoCategory } from './artifacts.js';
+import { detectCaptionsInFrames, type CaptionDetectionResult } from './captions.js';
 import { extractFrames, type ExtractedFrame } from './frames.js';
 import { probeVideo, type VideoMetadata } from './probe.js';
 import { detectScenes, type SceneDetectionResult } from './scenes.js';
@@ -23,6 +24,7 @@ export interface AnalyzeDeps {
   extractFrames?: (inputPath: string, framesDir: string) => Promise<ExtractedFrame[]>;
   detectScenes?: (inputPath: string, durationSec: number) => Promise<SceneDetectionResult>;
   detectAudio?: (inputPath: string) => Promise<AudioDetectionResult>;
+  detectCaptions?: (frames: ExtractedFrame[]) => Promise<CaptionDetectionResult>;
   urlDownloader?: UrlDownloader;
 }
 
@@ -43,11 +45,13 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
   const frameExtractor = deps.extractFrames ?? ((sourcePath, framesDir) => extractFrames(sourcePath, framesDir));
   const sceneDetector = deps.detectScenes ?? ((sourcePath, durationSec) => detectScenes(sourcePath, durationSec));
   const audioDetector = deps.detectAudio ?? ((sourcePath) => detectAudioCues(sourcePath));
+  const captionDetector = deps.detectCaptions ?? ((sampledFrames) => detectCaptionsInFrames(sampledFrames));
   const metadata = await probe(source.localPath);
   await mkdir(layout.framesDir, { recursive: true });
   const frames = await frameExtractor(source.localPath, layout.framesDir);
   const sceneDetection = await sceneDetector(source.localPath, metadata.durationSec);
   const audioDetection = metadata.hasAudio ? await audioDetector(source.localPath) : undefined;
+  const captionDetection = await captionDetector(frames);
   const artifacts = await writeAnalysisArtifacts({
     layout,
     source,
@@ -56,6 +60,7 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
     frames,
     sceneDetection,
     audioDetection,
+    captionDetection,
   });
   return { runId, layout, artifacts };
 }
