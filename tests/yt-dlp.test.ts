@@ -33,6 +33,25 @@ describe('downloadWithYtDlp', () => {
     );
   });
 
+  it('passes cookie options to yt-dlp for authenticated public-platform sessions', async () => {
+    const outputDir = path.join('/tmp', 'openvideo-run', 'input');
+    const cookiesFile = path.join('/tmp', 'cookies.txt');
+    const calls: Array<{ command: string; args: string[] }> = [];
+    const runner: CommandRunner = async (command, args) => {
+      calls.push({ command, args });
+      return { code: 0, stdout: `${path.join(outputDir, 'source.mp4')}\n`, stderr: '' };
+    };
+
+    await downloadWithYtDlp('https://www.douyin.com/video/123', outputDir, runner, {
+      cookiesFile,
+      cookiesFromBrowser: 'chrome',
+    });
+
+    expect(calls[0]?.args).toEqual(
+      expect.arrayContaining(['--cookies', cookiesFile, '--cookies-from-browser', 'chrome']),
+    );
+  });
+
   it('explains how to install yt-dlp when the command is missing', async () => {
     const runner: CommandRunner = async () => {
       const error = new Error('spawn yt-dlp ENOENT') as Error & { code: string };

@@ -6,6 +6,8 @@ SMOKE_URL="${OPENVIDEO_SMOKE_DOUYIN_URL:-}"
 DOWNLOADER="${OPENVIDEO_SMOKE_DOWNLOADER:-auto}"
 CATEGORY="${OPENVIDEO_SMOKE_CATEGORY:-knowledge}"
 SMOKE_DIR="${OPENVIDEO_SMOKE_DIR:-"$ROOT_DIR/.openvideo/smoke/douyin"}"
+COOKIES_FILE="${OPENVIDEO_SMOKE_COOKIES:-}"
+COOKIES_FROM_BROWSER="${OPENVIDEO_SMOKE_COOKIES_FROM_BROWSER:-}"
 
 if [[ -z "$SMOKE_URL" ]]; then
   echo "SKIP: set OPENVIDEO_SMOKE_DOUYIN_URL to run the real Douyin download/analyze smoke."
@@ -24,7 +26,14 @@ echo "Running OpenVideo doctor..."
 npm run doctor
 
 echo "Downloading Douyin reference with downloader: $DOWNLOADER"
-npm run dev -- download "$SMOKE_URL" --out "$DOWNLOADS_DIR" --downloader "$DOWNLOADER" | tee "$DOWNLOAD_LOG"
+download_args=(download "$SMOKE_URL" --out "$DOWNLOADS_DIR" --downloader "$DOWNLOADER")
+if [[ -n "$COOKIES_FILE" ]]; then
+  download_args+=(--cookies "$COOKIES_FILE")
+fi
+if [[ -n "$COOKIES_FROM_BROWSER" ]]; then
+  download_args+=(--cookies-from-browser "$COOKIES_FROM_BROWSER")
+fi
+npm run dev -- "${download_args[@]}" | tee "$DOWNLOAD_LOG"
 
 VIDEO_PATH="$(awk -F 'Video: ' '/^Video: / { print $2 }' "$DOWNLOAD_LOG" | tail -1)"
 if [[ -z "$VIDEO_PATH" || ! -s "$VIDEO_PATH" ]]; then

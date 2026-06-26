@@ -8,4 +8,6 @@ downloads/
 .env
 .env.*
 !.env.example
+cookies.txt
+*.cookies.txt
 coverage/

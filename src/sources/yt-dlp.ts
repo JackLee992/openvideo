@@ -9,10 +9,16 @@ export interface CommandResult {
 
 export type CommandRunner = (command: string, args: string[]) => Promise<CommandResult>;
 
+export interface YtDlpDownloadOptions {
+  cookiesFile?: string;
+  cookiesFromBrowser?: string;
+}
+
 export async function downloadWithYtDlp(
   url: string,
   outputDir: string,
   runner: CommandRunner = runCommand,
+  options: YtDlpDownloadOptions = {},
 ): Promise<string> {
   await mkdir(outputDir, { recursive: true });
   const args = [
@@ -25,6 +31,7 @@ export async function downloadWithYtDlp(
     'source.%(ext)s',
     '--print',
     'after_move:filepath',
+    ...cookieArgs(options),
     url,
   ];
 
@@ -52,6 +59,13 @@ export async function downloadWithYtDlp(
     throw new Error('yt-dlp finished without reporting a downloaded file path.');
   }
   return downloadedPath;
+}
+
+function cookieArgs(options: YtDlpDownloadOptions): string[] {
+  return [
+    ...(options.cookiesFile ? ['--cookies', options.cookiesFile] : []),
+    ...(options.cookiesFromBrowser ? ['--cookies-from-browser', options.cookiesFromBrowser] : []),
+  ];
 }
 
 function runCommand(command: string, args: string[]): Promise<CommandResult> {

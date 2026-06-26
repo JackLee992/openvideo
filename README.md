@@ -64,6 +64,13 @@ Download first, then inspect the downloaded file:
 openvideo download "https://www.douyin.com/video/..." --downloader auto
 ```
 
+When a public platform URL needs your normal browser session, pass cookies to `yt-dlp`:
+
+```bash
+openvideo download "https://www.douyin.com/video/..." --downloader yt-dlp --cookies-from-browser chrome
+openvideo analyze "https://www.douyin.com/video/..." --downloader yt-dlp --cookies ./cookies.txt
+```
+
 Clone Douyin-specific fallback tools:
 
 ```bash
@@ -104,6 +111,8 @@ Useful overrides:
 OPENVIDEO_SMOKE_DOWNLOADER=jiji
 OPENVIDEO_SMOKE_CATEGORY=knowledge
 OPENVIDEO_SMOKE_DIR=.openvideo/smoke/douyin
+OPENVIDEO_SMOKE_COOKIES=./cookies.txt
+OPENVIDEO_SMOKE_COOKIES_FROM_BROWSER=chrome
 ```
 
 This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.

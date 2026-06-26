@@ -2,9 +2,9 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { createRunId } from '../project/paths.js';
 import { downloadWithFallback, type DownloadAttempt, type DownloadProviderName } from './fallback.js';
-import { createDownloadProviders, type DownloadStrategy } from './providers.js';
+import { createDownloadProviders, type DownloaderAuthOptions, type DownloadStrategy } from './providers.js';
 
-export interface DownloadInput {
+export interface DownloadInput extends DownloaderAuthOptions {
   url: string;
   outDir?: string;
   downloader?: DownloadStrategy;
@@ -23,7 +23,10 @@ export async function downloadVideo(input: DownloadInput): Promise<DownloadResul
   const downloadId = createRunId(input.url, input.now);
   const outputDir = path.join(input.outDir ?? 'downloads', downloadId);
   await mkdir(outputDir, { recursive: true });
-  const providers = createDownloadProviders(input.downloader ?? 'auto');
+  const providers = createDownloadProviders(input.downloader ?? 'auto', {
+    cookiesFile: input.cookiesFile,
+    cookiesFromBrowser: input.cookiesFromBrowser,
+  });
   const result = await downloadWithFallback(input.url, outputDir, providers);
   return {
     downloadId,

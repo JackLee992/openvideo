@@ -58,6 +58,18 @@ function parseDownloadArgs(argv: string[]): ParseResult {
       value.downloader = downloader;
       continue;
     }
+    if (arg === '--cookies') {
+      const cookiesFile = rest[++i];
+      if (!cookiesFile) return { ok: false, error: 'Missing value for --cookies.' };
+      value.cookiesFile = cookiesFile;
+      continue;
+    }
+    if (arg === '--cookies-from-browser') {
+      const cookiesFromBrowser = rest[++i];
+      if (!cookiesFromBrowser) return { ok: false, error: 'Missing value for --cookies-from-browser.' };
+      value.cookiesFromBrowser = cookiesFromBrowser;
+      continue;
+    }
     return { ok: false, error: `Unknown download option: ${arg}` };
   }
 
@@ -66,7 +78,7 @@ function parseDownloadArgs(argv: string[]): ParseResult {
 
 function downloadUsage(): string {
   return [
-    'Usage: openvideo download <url> [--out downloads] [--downloader auto|yt-dlp|jiji|douyin-api]',
+    'Usage: openvideo download <url> [--out downloads] [--downloader auto|yt-dlp|jiji|douyin-api] [--cookies <file>] [--cookies-from-browser <browser>]',
     'Downloader strategies: auto, yt-dlp, jiji, douyin-api',
   ].join('\n');
 }

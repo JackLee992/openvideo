@@ -7,12 +7,20 @@ export type DownloadStrategy = 'auto' | 'yt-dlp' | 'jiji' | 'douyin-api';
 
 export const DOWNLOAD_STRATEGIES = new Set<DownloadStrategy>(['auto', 'yt-dlp', 'jiji', 'douyin-api']);
 
-export function createDownloadProviders(strategy: DownloadStrategy = 'auto'): DownloadProvider[] {
+export interface DownloaderAuthOptions {
+  cookiesFile?: string;
+  cookiesFromBrowser?: string;
+}
+
+export function createDownloadProviders(
+  strategy: DownloadStrategy = 'auto',
+  authOptions: DownloaderAuthOptions = {},
+): DownloadProvider[] {
   const providers: DownloadProvider[] = [];
   if (strategy === 'auto' || strategy === 'yt-dlp') {
     providers.push({
       name: 'yt-dlp',
-      download: (url, outputDir) => downloadWithYtDlp(url, outputDir),
+      download: (url, outputDir) => downloadWithYtDlp(url, outputDir, undefined, authOptions),
     });
   }
   if (strategy === 'auto' || strategy === 'jiji') {

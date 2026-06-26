@@ -19,22 +19,38 @@ describe('runDownload', () => {
     const io = createIO();
     const outDir = path.join('/tmp', 'openvideo-downloads');
 
-    const exitCode = await runDownload(['https://www.douyin.com/video/123', '--out', outDir, '--downloader', 'jiji'], io, {
-      download: async (input) => {
-        expect(input).toEqual({
-          url: 'https://www.douyin.com/video/123',
-          outDir,
-          downloader: 'jiji',
-        });
-        return {
-          downloadId: 'run-1',
-          outputDir: path.join(outDir, 'run-1'),
-          provider: 'jiji',
-          path: path.join(outDir, 'run-1', 'clip.mp4'),
-          attempts: [{ provider: 'jiji', ok: true, path: path.join(outDir, 'run-1', 'clip.mp4') }],
-        };
+    const exitCode = await runDownload(
+      [
+        'https://www.douyin.com/video/123',
+        '--out',
+        outDir,
+        '--downloader',
+        'jiji',
+        '--cookies',
+        '/tmp/cookies.txt',
+        '--cookies-from-browser',
+        'chrome',
+      ],
+      io,
+      {
+        download: async (input) => {
+          expect(input).toEqual({
+            url: 'https://www.douyin.com/video/123',
+            outDir,
+            downloader: 'jiji',
+            cookiesFile: '/tmp/cookies.txt',
+            cookiesFromBrowser: 'chrome',
+          });
+          return {
+            downloadId: 'run-1',
+            outputDir: path.join(outDir, 'run-1'),
+            provider: 'jiji',
+            path: path.join(outDir, 'run-1', 'clip.mp4'),
+            attempts: [{ provider: 'jiji', ok: true, path: path.join(outDir, 'run-1', 'clip.mp4') }],
+          };
+        },
       },
-    });
+    );
 
     expect(exitCode).toBe(0);
     expect(io.stdout.join('\n')).toContain('Provider: jiji');

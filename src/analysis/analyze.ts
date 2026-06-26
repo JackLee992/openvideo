@@ -2,7 +2,12 @@ import { mkdir } from 'node:fs/promises';
 import type { RunLayout } from '../project/paths.js';
 import { createRunId, createRunLayout } from '../project/paths.js';
 import { normalizeSource, type UrlDownloader } from '../sources/source.js';
-import { createDownloadProviders, downloadWithFallback, type DownloadStrategy } from '../downloaders/providers.js';
+import {
+  createDownloadProviders,
+  downloadWithFallback,
+  type DownloaderAuthOptions,
+  type DownloadStrategy,
+} from '../downloaders/providers.js';
 import { detectAudioCues, type AudioDetectionResult } from './audio.js';
 import { writeAnalysisArtifacts, type AnalysisArtifactResult, type VideoCategory } from './artifacts.js';
 import { detectCaptionsInFrames, type CaptionDetectionResult } from './captions.js';
@@ -12,7 +17,7 @@ import { probeVideo, type VideoMetadata } from './probe.js';
 import { detectScenes, type SceneDetectionResult } from './scenes.js';
 import { detectTranscript, transcriptUnavailable, type TranscriptDetectionResult } from './transcript.js';
 
-export interface AnalyzeInput {
+export interface AnalyzeInput extends DownloaderAuthOptions {
   input: string;
   outDir?: string;
   category?: VideoCategory;
@@ -43,7 +48,12 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
   const runId = createRunId(input.input, input.now);
   const layout = createRunLayout(input.outDir ?? 'runs', runId);
   const source = await normalizeSource(input.input, layout, {
-    urlDownloader: deps.urlDownloader ?? createUrlDownloader(input.downloader ?? 'auto'),
+    urlDownloader:
+      deps.urlDownloader ??
+      createUrlDownloader(input.downloader ?? 'auto', {
+        cookiesFile: input.cookiesFile,
+        cookiesFromBrowser: input.cookiesFromBrowser,
+      }),
   });
   const probe = deps.probe ?? probeVideo;
   const frameExtractor = deps.extractFrames ?? ((sourcePath, framesDir) => extractFrames(sourcePath, framesDir));
@@ -77,9 +87,9 @@ export async function analyzeVideo(input: AnalyzeInput, deps: AnalyzeDeps = {}):
   return { runId, layout, artifacts };
 }
 
-function createUrlDownloader(strategy: DownloadStrategy): UrlDownloader {
+function createUrlDownloader(strategy: DownloadStrategy, authOptions: DownloaderAuthOptions = {}): UrlDownloader {
   return async (url, outputDir) => {
-    const result = await downloadWithFallback(url, outputDir, createDownloadProviders(strategy));
+    const result = await downloadWithFallback(url, outputDir, createDownloadProviders(strategy, authOptions));
     return result.path;
   };
 }

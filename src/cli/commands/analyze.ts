@@ -1,5 +1,5 @@
 import type { CliIO } from '../index.js';
-import { analyzeVideo } from '../../analysis/analyze.js';
+import { analyzeVideo, type AnalyzeInput, type AnalyzeResult } from '../../analysis/analyze.js';
 import type { VideoCategory } from '../../analysis/artifacts.js';
 import { DOWNLOAD_STRATEGIES, type DownloadStrategy } from '../../downloaders/providers.js';
 
@@ -20,7 +20,15 @@ const DEFAULT_IO: CliIO = {
   writeErr: (line) => console.error(line),
 };
 
-export async function runAnalyze(argv: string[], io: CliIO = DEFAULT_IO): Promise<number> {
+export interface AnalyzeCommandDeps {
+  analyze?: (input: AnalyzeInput) => Promise<AnalyzeResult>;
+}
+
+export async function runAnalyze(
+  argv: string[],
+  io: CliIO = DEFAULT_IO,
+  deps: AnalyzeCommandDeps = {},
+): Promise<number> {
   const parsed = parseAnalyzeArgs(argv);
   if (!parsed.ok) {
     io.writeErr(parsed.error);
@@ -28,7 +36,8 @@ export async function runAnalyze(argv: string[], io: CliIO = DEFAULT_IO): Promis
     return 2;
   }
   try {
-    const result = await analyzeVideo(parsed.value);
+    const analyze = deps.analyze ?? analyzeVideo;
+    const result = await analyze(parsed.value);
     io.writeOut(`Created run: ${result.layout.runDir}`);
     io.writeOut('Wrote VIDEO_STYLE.md');
     io.writeOut('Wrote hyperframes-brief.md');
@@ -48,6 +57,8 @@ type ParseResult =
         full?: boolean;
         category?: VideoCategory;
         downloader?: DownloadStrategy;
+        cookiesFile?: string;
+        cookiesFromBrowser?: string;
       };
     }
   | { ok: false; error: string };
@@ -61,6 +72,8 @@ function parseAnalyzeArgs(argv: string[]): ParseResult {
     full?: boolean;
     category?: VideoCategory;
     downloader?: DownloadStrategy;
+    cookiesFile?: string;
+    cookiesFromBrowser?: string;
   } = { input };
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
@@ -88,6 +101,18 @@ function parseAnalyzeArgs(argv: string[]): ParseResult {
       value.downloader = downloader;
       continue;
     }
+    if (arg === '--cookies') {
+      const cookiesFile = rest[++i];
+      if (!cookiesFile) return { ok: false, error: 'Missing value for --cookies.' };
+      value.cookiesFile = cookiesFile;
+      continue;
+    }
+    if (arg === '--cookies-from-browser') {
+      const cookiesFromBrowser = rest[++i];
+      if (!cookiesFromBrowser) return { ok: false, error: 'Missing value for --cookies-from-browser.' };
+      value.cookiesFromBrowser = cookiesFromBrowser;
+      continue;
+    }
     return { ok: false, error: `Unknown analyze option: ${arg}` };
   }
   return { ok: true, value };
@@ -95,7 +120,7 @@ function parseAnalyzeArgs(argv: string[]): ParseResult {
 
 function analyzeUsage(): string {
   return [
-    'Usage: openvideo analyze <file-or-url> [--out runs] [--full] [--category <category>] [--downloader auto|yt-dlp|jiji|douyin-api]',
+    'Usage: openvideo analyze <file-or-url> [--out runs] [--full] [--category <category>] [--downloader auto|yt-dlp|jiji|douyin-api] [--cookies <file>] [--cookies-from-browser <browser>]',
     'Categories: auto, product-demo, talking-head, knowledge, commerce, lifestyle, story, cinematic-ad, motion-graphic',
     'Downloader strategies: auto, yt-dlp, jiji, douyin-api',
   ].join('\n');
