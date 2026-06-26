@@ -25,6 +25,7 @@ describe('openvideo cli help', () => {
     expect(io.stdout.join('\n')).toContain('download <url>');
     expect(io.stdout.join('\n')).toContain('analyze <file-or-url>');
     expect(io.stdout.join('\n')).toContain('brief <run-dir>');
+    expect(io.stdout.join('\n')).toContain('report <run-dir>');
     expect(io.stdout.join('\n')).toContain('render <run-dir>');
   });
 

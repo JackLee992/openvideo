@@ -169,6 +169,14 @@ This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brie
 `captions.json` and `caption-style.md` include optional Tesseract OCR observations from sampled frames when OCR is installed.
 `transcript.json` and `script-notes.md` include optional HyperFrames ASR word timestamps when the source has audio and transcription is available.
 
+Create a local browser workbench from an analyzed run:
+
+```bash
+openvideo report runs/<run-id>
+```
+
+This writes `runs/<run-id>/report/index.html` with the run metadata, storyboard timeline, transition table, motion/camera summary, OCR evidence, ASR transcript, HyperFrames brief, and sampled frame strip.
+
 Create a goal-specific generation brief from an analyzed run:
 
 ```bash
