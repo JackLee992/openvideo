@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { buildAnalysisPlaybook, normalizeVideoCategory, type AnalysisPlaybook } from '../analysis/playbook.js';
 
 export interface AnalysisWorkbenchInput {
   runDir: string;
@@ -16,6 +17,7 @@ interface WorkbenchData {
   storyboard: Record<string, unknown>;
   transitions: Record<string, unknown>;
   motion: Record<string, unknown>;
+  playbook: AnalysisPlaybook;
   captions: Record<string, unknown>;
   transcript: Record<string, unknown>;
   videoStyle: string;
@@ -36,13 +38,19 @@ export async function createAnalysisWorkbench(input: AnalysisWorkbenchInput): Pr
 async function readWorkbenchData(runDir: string): Promise<WorkbenchData> {
   const analysisDir = path.join(runDir, 'analysis');
   const metadata = await readRequiredJson(path.join(analysisDir, 'metadata.json'), 'metadata.json');
+  const playbook =
+    (await readOptionalJson<AnalysisPlaybook>(path.join(analysisDir, 'playbook.json'))) ??
+    buildAnalysisPlaybook(normalizeVideoCategory(metadata.category), {
+      runId: stringValue(metadata.runId, path.basename(runDir)),
+    });
   return {
     metadata,
-    storyboard: await readOptionalJson(path.join(analysisDir, 'storyboard.json')),
-    transitions: await readOptionalJson(path.join(analysisDir, 'transition-analysis.json')),
-    motion: await readOptionalJson(path.join(analysisDir, 'motion-analysis.json')),
-    captions: await readOptionalJson(path.join(analysisDir, 'captions.json')),
-    transcript: await readOptionalJson(path.join(analysisDir, 'transcript.json')),
+    storyboard: (await readOptionalJson(path.join(analysisDir, 'storyboard.json'))) ?? {},
+    transitions: (await readOptionalJson(path.join(analysisDir, 'transition-analysis.json'))) ?? {},
+    motion: (await readOptionalJson(path.join(analysisDir, 'motion-analysis.json'))) ?? {},
+    playbook,
+    captions: (await readOptionalJson(path.join(analysisDir, 'captions.json'))) ?? {},
+    transcript: (await readOptionalJson(path.join(analysisDir, 'transcript.json'))) ?? {},
     videoStyle: await readOptionalText(path.join(runDir, 'VIDEO_STYLE.md')),
     hyperframesBrief: await readOptionalText(path.join(runDir, 'hyperframes-brief.md')),
     frames: Array.isArray(metadata.frameSample) ? metadata.frameSample.filter((item): item is string => typeof item === 'string') : [],
@@ -57,11 +65,11 @@ async function readRequiredJson(filePath: string, label: string): Promise<Record
   }
 }
 
-async function readOptionalJson(filePath: string): Promise<Record<string, unknown>> {
+async function readOptionalJson<T = Record<string, unknown>>(filePath: string): Promise<T | null> {
   try {
-    return JSON.parse(await readFile(filePath, 'utf8')) as Record<string, unknown>;
+    return JSON.parse(await readFile(filePath, 'utf8')) as T;
   } catch {
-    return {};
+    return null;
   }
 }
 
@@ -108,6 +116,7 @@ function renderWorkbenchHtml(runDir: string, reportDir: string, data: WorkbenchD
     <nav>
       <a href="#overview">Overview</a>
       <a href="#storyboard">Storyboard</a>
+      <a href="#playbook">Playbook</a>
       <a href="#transitions">Transitions</a>
       <a href="#motion">Motion</a>
       <a href="#ocr">OCR</a>
@@ -134,6 +143,10 @@ function renderWorkbenchHtml(runDir: string, reportDir: string, data: WorkbenchD
         ${metricCard('OCR Items', String(captions.length))}
         ${metricCard('ASR Words', String(transcriptWords.length))}
       </div>
+    </section>
+    <section id="playbook" class="panel">
+      <h2>Category Playbook</h2>
+      ${renderPlaybook(data.playbook)}
     </section>
     <section class="grid">
       <article id="transitions" class="panel">
@@ -202,6 +215,10 @@ nav a:first-child, nav a:hover { background: #e8f4f2; color: var(--accent); }
 .beat { border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 8px; padding: 10px; min-height: 112px; }
 .beat strong { display: block; margin-bottom: 6px; }
 .beat small { color: var(--muted); display: block; margin-bottom: 8px; }
+.focus-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 10px; }
+.focus { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fbfdfc; }
+.focus strong { display: block; margin-bottom: 8px; }
+.focus ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 table { width: 100%; border-collapse: collapse; }
 th { color: var(--muted); text-align: left; font-weight: 600; }
 th, td { padding: 8px 6px; border-bottom: 1px solid #edf2f0; vertical-align: top; }
@@ -213,6 +230,26 @@ img { width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 6px; 
 @media (max-width: 1100px) { body { grid-template-columns: 220px minmax(0, 1fr); } .frames { display: none; } .hero-panel, .grid { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { body { display: block; } .rail { border-right: 0; border-bottom: 1px solid var(--line); } main { padding: 14px; } }
 `;
+}
+
+function renderPlaybook(playbook: AnalysisPlaybook): string {
+  const focusAreas =
+    playbook.focusAreas.length > 0
+      ? playbook.focusAreas
+          .map(
+            (area) =>
+              `<article class="focus"><strong>${escapeText(area.label)}</strong><ul>${area.questions
+                .slice(0, 2)
+                .map((question) => `<li>${escapeText(question)}</li>`)
+                .join('')}</ul></article>`,
+          )
+          .join('')
+      : '<p class="meta">No category playbook available.</p>';
+  return `<div class="summary-grid">
+    ${metricCard('Archetype', playbook.archetype)}
+    ${metricCard('Category', playbook.category)}
+  </div>
+  <div class="focus-grid">${focusAreas}</div>`;
 }
 
 function renderTimeline(beats: unknown[]): string {

@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { buildAnalysisPlaybook, normalizeVideoCategory, type AnalysisPlaybook } from '../analysis/playbook.js';
 
 export interface ReportInput {
   runDir: string;
@@ -100,26 +101,44 @@ interface TranscriptDoc {
 export async function generateReport(input: ReportInput): Promise<ReportResult> {
   const runDir = path.resolve(input.runDir);
   const analysisDir = path.join(runDir, 'analysis');
-  const [metadata, editRhythm, storyboard, captions, transcript] = await Promise.all([
+  const [metadata, editRhythm, storyboard, captions, transcript, playbookFromDisk] = await Promise.all([
     readJson<MetadataDoc>(path.join(analysisDir, 'metadata.json')),
     readJson<EditRhythmDoc>(path.join(analysisDir, 'edit-rhythm.json')),
     readJson<StoryboardDoc>(path.join(analysisDir, 'storyboard.json')),
     readJson<CaptionsDoc>(path.join(analysisDir, 'captions.json')),
     readJson<TranscriptDoc>(path.join(analysisDir, 'transcript.json')),
+    readOptionalJson<AnalysisPlaybook>(path.join(analysisDir, 'playbook.json')),
   ]);
 
   const transcriptSegments = segmentTranscript(transcript);
+  const playbook =
+    playbookFromDisk ??
+    buildAnalysisPlaybook(normalizeVideoCategory(metadata.category), {
+      runId: metadata.runId,
+    });
   const reportPath = path.resolve(input.outPath ?? path.join(analysisDir, 'report.md'));
   const transcriptReadablePath = path.join(analysisDir, 'transcript-readable.md');
   await mkdir(path.dirname(reportPath), { recursive: true });
   await mkdir(path.dirname(transcriptReadablePath), { recursive: true });
   await writeFile(transcriptReadablePath, transcriptReadableDoc(transcript, transcriptSegments), 'utf8');
-  await writeFile(reportPath, reportDoc(metadata, editRhythm, storyboard, captions, transcript, transcriptSegments), 'utf8');
+  await writeFile(
+    reportPath,
+    reportDoc(metadata, editRhythm, storyboard, captions, transcript, transcriptSegments, playbook),
+    'utf8',
+  );
   return { reportPath, transcriptReadablePath };
 }
 
 async function readJson<T>(filePath: string): Promise<T> {
   return JSON.parse(await readFile(filePath, 'utf8')) as T;
+}
+
+async function readOptionalJson<T>(filePath: string): Promise<T | null> {
+  try {
+    return JSON.parse(await readFile(filePath, 'utf8')) as T;
+  } catch {
+    return null;
+  }
 }
 
 function segmentTranscript(transcript: TranscriptDoc): string[] {
@@ -171,6 +190,7 @@ function reportDoc(
   captions: CaptionsDoc,
   transcript: TranscriptDoc,
   transcriptSegments: string[],
+  playbook: AnalysisPlaybook,
 ): string {
   const video = metadata.video ?? {};
   const firstSegment = transcriptSegments[0] ?? '';
@@ -212,6 +232,10 @@ This ${metadata.category ?? 'auto'} video is a ${durationLabel(video.durationSec
 
 ${narrativeStructure(storyboard, transcriptSegments)}
 
+## Category Playbook
+
+${playbookRead(playbook)}
+
 ## Editing And Visual Rhythm
 
 ${editingRead(metadata, editRhythm, sceneCount)}
@@ -239,6 +263,27 @@ ${transcriptRead(transcript, transcriptSegments)}
 - Chinese OCR and ASR may contain segmentation, punctuation, or homophone errors.
 - Do not copy the original script, watermark, face, distinctive frames, or creator identity.
 `;
+}
+
+function playbookRead(playbook: AnalysisPlaybook): string {
+  const focusLines = playbook.focusAreas
+    .map((area) => {
+      const questions = area.questions.slice(0, 2).map((question) => `  - ${question}`).join('\n');
+      return `- ${area.label}\n${questions}`;
+    })
+    .join('\n');
+  return [
+    `- Archetype: ${playbook.archetype}`,
+    '',
+    'Focus areas:',
+    focusLines || '- No focus areas available.',
+    '',
+    'Director angles:',
+    ...playbook.directorAngles.map((angle) => `- ${angle}`),
+    '',
+    'Editor angles:',
+    ...playbook.editorAngles.map((angle) => `- ${angle}`),
+  ].join('\n');
 }
 
 function narrativeStructure(storyboard: StoryboardDoc, transcriptSegments: string[]): string {

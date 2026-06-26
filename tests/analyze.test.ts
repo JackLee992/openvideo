@@ -115,8 +115,10 @@ describe('writeAnalysisArtifacts', () => {
     await expect(stat(path.join(layout.analysisDir, 'storyboard.json'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'transition-analysis.json'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'motion-analysis.json'))).resolves.toBeTruthy();
+    await expect(stat(path.join(layout.analysisDir, 'playbook.json'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'director-notes.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'editor-notes.md'))).resolves.toBeTruthy();
+    await expect(stat(path.join(layout.analysisDir, 'playbook.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'caption-style.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'motion-language.md'))).resolves.toBeTruthy();
     await expect(stat(path.join(layout.analysisDir, 'sound-notes.md'))).resolves.toBeTruthy();
@@ -131,10 +133,12 @@ describe('writeAnalysisArtifacts', () => {
     const storyboard = JSON.parse(await readFile(path.join(layout.analysisDir, 'storyboard.json'), 'utf8'));
     const transitionAnalysis = JSON.parse(await readFile(path.join(layout.analysisDir, 'transition-analysis.json'), 'utf8'));
     const motionAnalysis = JSON.parse(await readFile(path.join(layout.analysisDir, 'motion-analysis.json'), 'utf8'));
+    const playbook = JSON.parse(await readFile(path.join(layout.analysisDir, 'playbook.json'), 'utf8'));
     const captions = JSON.parse(await readFile(path.join(layout.analysisDir, 'captions.json'), 'utf8'));
     const transcript = JSON.parse(await readFile(path.join(layout.analysisDir, 'transcript.json'), 'utf8'));
     const captionStyle = await readFile(path.join(layout.analysisDir, 'caption-style.md'), 'utf8');
     const editorNotes = await readFile(path.join(layout.analysisDir, 'editor-notes.md'), 'utf8');
+    const playbookNotes = await readFile(path.join(layout.analysisDir, 'playbook.md'), 'utf8');
     const scriptNotes = await readFile(path.join(layout.analysisDir, 'script-notes.md'), 'utf8');
     const soundNotes = await readFile(path.join(layout.analysisDir, 'sound-notes.md'), 'utf8');
     expect(metadata.category).toBe('product-demo');
@@ -150,6 +154,14 @@ describe('writeAnalysisArtifacts', () => {
     expect(storyboard.beats.map((beat: { role: string }) => beat.role)).toEqual(['hook', 'proof', 'payoff']);
     expect(transitionAnalysis.transitions[0].type).toBe('hard-cut');
     expect(motionAnalysis.cameraMovement).toBe('pan-or-reframe');
+    expect(playbook.archetype).toBe('product-demonstration');
+    expect(playbook.focusAreas.map((area: { id: string }) => area.id)).toEqual([
+      'problem-setup',
+      'workflow-proof',
+      'result-reveal',
+      'screen-legibility',
+    ]);
+    expect(playbookNotes).toContain('Workflow proof');
     expect(shotBreakdown.shots[0].cameraMovement).toBe('pan-or-reframe');
     expect(editorNotes).toContain('Storyboard Beats');
     expect(editRhythm.audioCues).toEqual([

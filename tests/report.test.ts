@@ -29,6 +29,8 @@ describe('generateReport', () => {
     expect(result.reportPath).toBe(path.join(runDir, 'analysis', 'report.md'));
     expect(report).toContain('OpenVideo Analysis Report');
     expect(report).toContain('Scenes detected: 3');
+    expect(report).toContain('Category Playbook');
+    expect(report).toContain('Hook thesis');
     expect(report).toContain('Reusable Creative Pattern');
     expect(transcript).toContain('Segment count:');
     expect(transcript).toContain('开场先抛出反常识问题');
@@ -48,6 +50,8 @@ describe('createAnalysisWorkbench', () => {
     expect(html).toContain('OpenVideo Workbench');
     expect(html).toContain('data-run-id="demo"');
     expect(html).toContain('Storyboard Timeline');
+    expect(html).toContain('Category Playbook');
+    expect(html).toContain('Hook thesis');
     expect(html).toContain('Transition Table');
     expect(html).toContain('Motion / Camera');
     expect(html).toContain('OCR Evidence');
@@ -139,6 +143,22 @@ async function createRunFixture(root: string): Promise<string> {
     dominantDirection: 'none',
     frameCount: 1,
     sceneProfiles: [],
+  });
+  await writeJson(path.join(analysisDir, 'playbook.json'), {
+    runId: 'demo',
+    category: 'knowledge',
+    archetype: 'knowledge-explainer',
+    focusAreas: [
+      {
+        id: 'hook-thesis',
+        label: 'Hook thesis',
+        questions: ['What claim is made in the first 3 seconds?'],
+        evidenceFiles: ['analysis/storyboard.json'],
+      },
+    ],
+    directorAngles: ['Identify the teacher stance and visual authority.'],
+    editorAngles: ['Track how each cut separates claim, proof, and payoff.'],
+    hyperframesGuidance: ['Rebuild the claim/proof/payoff structure with original wording.'],
   });
   await writeJson(path.join(analysisDir, 'captions.json'), {
     available: true,

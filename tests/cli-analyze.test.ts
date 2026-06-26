@@ -76,6 +76,8 @@ describe('openvideo analyze cli', () => {
               storyboardPath: '/tmp/openvideo/run-1/analysis/storyboard.json',
               transitionAnalysisPath: '/tmp/openvideo/run-1/analysis/transition-analysis.json',
               motionAnalysisPath: '/tmp/openvideo/run-1/analysis/motion-analysis.json',
+              playbookPath: '/tmp/openvideo/run-1/analysis/playbook.json',
+              playbookNotesPath: '/tmp/openvideo/run-1/analysis/playbook.md',
               captionsPath: '/tmp/openvideo/run-1/analysis/captions.json',
               transcriptPath: '/tmp/openvideo/run-1/analysis/transcript.json',
               scriptNotesPath: '/tmp/openvideo/run-1/analysis/script-notes.md',

@@ -2,7 +2,7 @@
 
 OpenVideo is a local-first toolkit for analyzing Douyin-style short videos and turning their director, editing, caption, motion, and sound language into reusable generation briefs.
 
-The `v0.2.0` release is CLI-first. It focuses on local video files, direct video URLs, and public platform URLs that downloader providers can resolve, then produces artifacts such as `VIDEO_STYLE.md`, `shot-breakdown.json`, `edit-rhythm.json`, `analysis/report.md`, `analysis/transcript-readable.md`, and `hyperframes-brief.md`.
+The `v0.2.0` release is CLI-first. It focuses on local video files, direct video URLs, and public platform URLs that downloader providers can resolve, then produces artifacts such as `VIDEO_STYLE.md`, `shot-breakdown.json`, `edit-rhythm.json`, `analysis/playbook.md`, `analysis/report.md`, `analysis/transcript-readable.md`, and `hyperframes-brief.md`.
 
 ## Why
 
@@ -176,6 +176,7 @@ This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brie
 `shot-breakdown.json` and `edit-rhythm.json` include ffmpeg-based scene cut detection for deterministic first-pass shot ranges.
 `storyboard.json`, `transition-analysis.json`, and `editor-notes.md` organize scenes into hook/proof/payoff beats, pacing roles, and cut-type evidence for director/editor review.
 `motion-analysis.json` estimates visual motion, dominant direction, and camera movement hints such as locked-off, pan/reframe, or push-in/graphic motion.
+`playbook.json` and `playbook.md` provide category-specific review angles so knowledge, commerce, product-demo, lifestyle, story, cinematic-ad, motion-graphic, and talking-head videos are not decomposed with the same checklist.
 `edit-rhythm.json` and `sound-notes.md` also include ffmpeg-based sound-start cues from silence detection when the source has audio.
 `captions.json` and `caption-style.md` include optional Tesseract OCR observations from sampled frames when OCR is installed.
 `transcript.json` and `script-notes.md` include optional HyperFrames ASR word timestamps when the source has audio and transcription is available.
@@ -186,7 +187,7 @@ Generate a human-readable report and local browser workbench from an analyzed ru
 openvideo report runs/<run-id>
 ```
 
-This writes `analysis/report.md`, `analysis/transcript-readable.md`, and `report/index.html`. The browser workbench brings run metadata, storyboard timeline, transition table, motion/camera summary, OCR evidence, ASR transcript, HyperFrames brief, and sampled frames into one page.
+This writes `analysis/report.md`, `analysis/transcript-readable.md`, and `report/index.html`. The browser workbench brings run metadata, category playbook, storyboard timeline, transition table, motion/camera summary, OCR evidence, ASR transcript, HyperFrames brief, and sampled frames into one page.
 
 Create a goal-specific generation brief from an analyzed run:
 
@@ -218,6 +219,7 @@ npx hyperframes render --quality draft --output out.mp4
 - downloader fallback providers: `yt-dlp`, browser-backed capture, jiji, and Douyin API
 - preview-media detection with `--min-duration` and `download-diagnostics.json`
 - deterministic analysis artifacts for frames, scenes, motion, audio cues, OCR captions, and HyperFrames ASR
+- category-specific playbooks for director/editor review angles by video archetype
 - `report` command for `analysis/report.md`, segmented `analysis/transcript-readable.md`, and `report/index.html`
 - `brief` and `render` preparation commands for downstream HyperFrames workflows
 - manifest-backed real Douyin sample reports and regression scripts under `samples/real-douyin/`
