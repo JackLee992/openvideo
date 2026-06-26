@@ -78,6 +78,7 @@ openvideo download "https://www.douyin.com/video/..." --downloader douyin-api
 ```
 
 This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.
+`shot-breakdown.json` and `edit-rhythm.json` include ffmpeg-based scene cut detection for deterministic first-pass shot ranges.
 
 Create a goal-specific generation brief from an analyzed run:
 

@@ -4,6 +4,7 @@ import type { RunLayout } from '../project/paths.js';
 import type { NormalizedSource } from '../sources/source.js';
 import type { ExtractedFrame } from './frames.js';
 import type { VideoMetadata } from './probe.js';
+import type { SceneDetectionResult } from './scenes.js';
 
 export type VideoCategory =
   | 'auto'
@@ -22,6 +23,7 @@ export interface AnalysisArtifactInput {
   category: VideoCategory;
   metadata: VideoMetadata;
   frames: ExtractedFrame[];
+  sceneDetection?: SceneDetectionResult;
 }
 
 export interface AnalysisArtifactResult {
@@ -59,31 +61,42 @@ export async function writeAnalysisArtifacts(input: AnalysisArtifactInput): Prom
     raw: input.metadata.raw,
   };
 
+  const scenes = input.sceneDetection?.scenes ?? [
+    {
+      index: 1,
+      startSec: 0,
+      endSec: Number(input.metadata.durationSec.toFixed(3)),
+      durationSec: Number(input.metadata.durationSec.toFixed(3)),
+    },
+  ];
+  const cuts = input.sceneDetection?.cuts ?? [];
   const shotBreakdown = {
     runId: input.layout.runId,
     category: input.category,
-    assumptions: ['Deterministic V1 skeleton; richer scene detection will refine this later.'],
-    shots: [
-      {
-        index: 1,
-        startSec: 0,
-        endSec: Number(input.metadata.durationSec.toFixed(3)),
-        durationSec: Number(input.metadata.durationSec.toFixed(3)),
-        shotScale: input.category === 'product-demo' ? 'screen capture / product frame' : 'unknown',
-        cameraMovement: 'unknown',
-        sampledFrames: input.frames.map((frame) => frame.fileName),
-      },
-    ],
+    assumptions: input.sceneDetection
+      ? [`Scene cuts detected by ffmpeg scene threshold ${input.sceneDetection.threshold}.`]
+      : ['No scene cuts detected; using single-scene baseline.'],
+    shots: scenes.map((scene) => ({
+      ...scene,
+      shotScale: input.category === 'product-demo' ? 'screen capture / product frame' : 'unknown',
+      cameraMovement: 'unknown',
+      cutIn: scene.index === 1 ? 'opening' : 'scene-cut',
+      sampledFrames: input.frames.map((frame) => frame.fileName),
+    })),
   };
 
   const editRhythm = {
     runId: input.layout.runId,
     durationSec: input.metadata.durationSec,
-    estimatedSceneCount: 1,
-    averageSceneDurationSec: input.metadata.durationSec,
+    estimatedSceneCount: scenes.length,
+    averageSceneDurationSec: Number((input.metadata.durationSec / Math.max(1, scenes.length)).toFixed(3)),
     hookWindowSec: Math.min(3, input.metadata.durationSec),
-    pacingCurve: 'unknown',
-    cuts: [],
+    pacingCurve: scenes.length > 1 ? pacingCurveFor(scenes.map((scene) => scene.durationSec)) : 'single-scene',
+    cuts: cuts.map((cut) => ({
+      timestampSec: cut.timestampSec,
+      type: 'scene-cut',
+      confidence: 'ffmpeg-scene-detect',
+    })),
     retentionBeats: ['Opening 1-3 seconds should be reviewed for hook mechanics.'],
   };
 
@@ -131,6 +144,15 @@ function greatestCommonDivisor(a: number, b: number): number {
     y = next;
   }
   return x || 1;
+}
+
+function pacingCurveFor(durations: number[]): string {
+  if (durations.length <= 1) return 'single-scene';
+  const first = durations[0] ?? 0;
+  const last = durations[durations.length - 1] ?? 0;
+  if (first > last * 1.5) return 'accelerating';
+  if (last > first * 1.5) return 'slow-build';
+  return 'pulsed';
 }
 
 async function writeJson(filePath: string, value: unknown): Promise<void> {
