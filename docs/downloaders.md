@@ -54,7 +54,7 @@ openvideo download "https://www.douyin.com/video/..." --downloader jiji
 ## Current Provider Order
 
 ```text
-auto -> yt-dlp -> jiji
+auto -> yt-dlp -> jiji -> douyin-api
 ```
 
-`yt-dlp` remains the default first provider because it is broadly maintained and lightweight to call from Node. `jiji` is the first Douyin-specific fallback. The API-service provider is cloned for local experimentation and will get a first-class adapter after we verify its startup, cookie, and endpoint contract.
+`yt-dlp` remains the default first provider because it is broadly maintained and lightweight to call from Node. `jiji` is the first Douyin-specific fallback. `douyin-api` calls an already-running `Douyin_TikTok_Download_API` service through `/api/download`; set `OPENVIDEO_DOUYIN_API_BASE_URL` when it is not running at `http://127.0.0.1:80`.

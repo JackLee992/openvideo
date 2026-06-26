@@ -66,7 +66,7 @@ function parseDownloadArgs(argv: string[]): ParseResult {
 
 function downloadUsage(): string {
   return [
-    'Usage: openvideo download <url> [--out downloads] [--downloader auto|yt-dlp|jiji]',
-    'Downloader strategies: auto, yt-dlp, jiji',
+    'Usage: openvideo download <url> [--out downloads] [--downloader auto|yt-dlp|jiji|douyin-api]',
+    'Downloader strategies: auto, yt-dlp, jiji, douyin-api',
   ].join('\n');
 }

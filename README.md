@@ -70,6 +70,13 @@ scripts/downloaders/clone-downloaders.sh
 openvideo download "https://www.douyin.com/video/..." --downloader jiji
 ```
 
+Use an already-running Douyin API service as the final fallback:
+
+```bash
+export OPENVIDEO_DOUYIN_API_BASE_URL=http://127.0.0.1:8080
+openvideo download "https://www.douyin.com/video/..." --downloader douyin-api
+```
+
 This creates a run folder under `runs/` with `VIDEO_STYLE.md`, `hyperframes-brief.md`, sampled frames, and analysis files.
 
 Create a goal-specific generation brief from an analyzed run:

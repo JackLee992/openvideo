@@ -1,10 +1,11 @@
+import { downloadWithDouyinApi } from './douyin-api.js';
 import { downloadWithJiji } from './jiji.js';
 import { downloadWithFallback, type DownloadProvider } from './fallback.js';
 import { downloadWithYtDlp } from '../sources/yt-dlp.js';
 
-export type DownloadStrategy = 'auto' | 'yt-dlp' | 'jiji';
+export type DownloadStrategy = 'auto' | 'yt-dlp' | 'jiji' | 'douyin-api';
 
-export const DOWNLOAD_STRATEGIES = new Set<DownloadStrategy>(['auto', 'yt-dlp', 'jiji']);
+export const DOWNLOAD_STRATEGIES = new Set<DownloadStrategy>(['auto', 'yt-dlp', 'jiji', 'douyin-api']);
 
 export function createDownloadProviders(strategy: DownloadStrategy = 'auto'): DownloadProvider[] {
   const providers: DownloadProvider[] = [];
@@ -18,6 +19,12 @@ export function createDownloadProviders(strategy: DownloadStrategy = 'auto'): Do
     providers.push({
       name: 'jiji',
       download: (url, outputDir) => downloadWithJiji(url, outputDir),
+    });
+  }
+  if (strategy === 'auto' || strategy === 'douyin-api') {
+    providers.push({
+      name: 'douyin-api',
+      download: (url, outputDir) => downloadWithDouyinApi(url, outputDir),
     });
   }
   return providers;

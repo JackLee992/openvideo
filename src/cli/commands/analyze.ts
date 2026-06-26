@@ -95,8 +95,8 @@ function parseAnalyzeArgs(argv: string[]): ParseResult {
 
 function analyzeUsage(): string {
   return [
-    'Usage: openvideo analyze <file-or-url> [--out runs] [--full] [--category <category>] [--downloader auto|yt-dlp|jiji]',
+    'Usage: openvideo analyze <file-or-url> [--out runs] [--full] [--category <category>] [--downloader auto|yt-dlp|jiji|douyin-api]',
     'Categories: auto, product-demo, talking-head, knowledge, commerce, lifestyle, story, cinematic-ad, motion-graphic',
-    'Downloader strategies: auto, yt-dlp, jiji',
+    'Downloader strategies: auto, yt-dlp, jiji, douyin-api',
   ].join('\n');
 }
